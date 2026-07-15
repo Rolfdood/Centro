@@ -32,7 +32,7 @@ Secondary metrics:
 - **State Management:** TanStack Query for all server state; Zustand for composer UI state only. No Redux, no Context-based server cache.
 - **Database / ORM:** PostgreSQL + Prisma. All DB access happens in server code (route handlers / server actions) only — never import Prisma into client components.
 - **Auth:** Auth.js (NextAuth v5) with the Prisma adapter. Email/password (credentials, hashed with argon2) + Google OAuth.
-- **AI:** Anthropic Claude API accessed behind an `AIProvider` interface (default model `claude-haiku-4-5`, overridable via env var). Must be swappable for another provider without touching feature code.
+- **AI:** OpenAI API accessed behind an `AIProvider` interface (default model `gpt-4o-mini`, overridable via env var). Must be swappable for another provider without touching feature code.
 - **Scheduling:** Database-backed job state on `PostTarget` + a secured cron route `/api/cron/publish-due` invoked every minute (Vercel Cron or external pinger). Publisher must be idempotent.
 - **Media Storage:** `MediaStorage` interface; local disk (`/uploads`) implementation for MVP, S3-compatible implementation later. No direct filesystem calls outside the interface.
 - **Platform Integration:** A `SocialPlatformAdapter` interface (see §7). MVP ships **mock adapters** for all 5 platforms behind `MOCK_PLATFORMS=true`. No feature code may call a platform API directly — everything goes through the adapter registry.
@@ -124,7 +124,7 @@ src/
         mockLinkedIn.ts
     ai/
       provider.ts                   # AIProvider interface
-      anthropic.ts                  # Claude implementation
+      openai.ts                     # OpenAI implementation
       prompts/adaptPost.ts          # prompt template incl. per-platform constraints
     queue/
       publisher.ts                  # idempotent due-target publishing (used by cron route)
@@ -371,9 +371,9 @@ Mock adapter behavior (`baseMock.ts`): ~600ms artificial latency, returns `https
 DATABASE_URL=
 AUTH_SECRET=
 GOOGLE_CLIENT_ID= / GOOGLE_CLIENT_SECRET=
-ANTHROPIC_API_KEY=
-AI_PROVIDER=anthropic
-AI_MODEL=claude-haiku-4-5
+OPENAI_API_KEY=
+AI_PROVIDER=openai
+AI_MODEL=gpt-4o-mini
 MOCK_PLATFORMS=true
 MOCK_FAILURE_RATE=0
 CRON_SECRET=
