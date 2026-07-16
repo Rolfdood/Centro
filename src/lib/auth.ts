@@ -1,9 +1,9 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import NextAuth, { type NextAuthConfig } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import argon2 from "argon2";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import type { NextAuthOptions } from "next-auth";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -59,7 +59,7 @@ function recordSuccess(email: string): void {
   failedAttempts.delete(email);
 }
 
-export const authOptions: NextAuthOptions = {
+export const authConfig = {
   adapter: PrismaAdapter(db),
   session: {
     strategy: "jwt",
@@ -85,7 +85,7 @@ export const authOptions: NextAuthOptions = {
 
         const throttle = checkThrottle(email);
         if (throttle.throttled) {
-          throw new Error(throttle.message);
+          throw new Error(throttle.message ?? "Too many attempts.");
         }
 
         const user = await db.user.findUnique({
@@ -127,4 +127,6 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-};
+} satisfies NextAuthConfig;
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);

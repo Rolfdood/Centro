@@ -6,8 +6,8 @@
 |---|---|---|---|
 | Centro-001 | Complete & merged | `feature/Centro-001` | Merged to `develop` |
 | Centro-002 | Complete & merged | `feature/Centro-002` | Merged to `develop` |
-| Centro-003 | Complete, PR pending | `feature/Centro-003` | Ready for PR |
-| Centro-004 | Complete, pushed | `feature/Centro-004` | Ready for PR |
+| Centro-003 | Complete & merged | `feature/Centro-003` | Merged to `develop` |
+| Centro-004 | Complete, PR open | `feature/Centro-004` | Draft PR #8 |
 
 ---
 
@@ -73,8 +73,8 @@
 
 ### Changes
 #### Dependencies
-- Installed `next-auth` (v4), `@auth/prisma-adapter`, `argon2`, `zod`
-- Installed `shadcn/ui` with Button, Input, Label, Card components
+- Installed `next-auth` (v5 beta), `@auth/prisma-adapter`, `argon2`, `zod`
+- Added shadcn/ui-compatible Button, Input, Label, Card components
 - Installed `tailwindcss-animate`
 
 #### Schema
@@ -86,7 +86,7 @@
 
 #### Auth Configuration
 - Created `src/lib/auth.ts`:
-  - NextAuth v4 config with PrismaAdapter, JWT strategy, CredentialsProvider
+  - NextAuth v5 config with PrismaAdapter, JWT strategy, CredentialsProvider
   - `authorize` callback with zod validation + argon2 password verification
   - **Throttling:** >5 failed login attempts in 15 min → "Too many attempts. Try again in X minutes."
   - JWT/session callbacks inject `user.id` into session
@@ -137,11 +137,10 @@
 ## Branch State
 
 ```
-ee6b6c4 feature/Centro-004 [Centro-004] - Fix CSS/shadcn config, NextAuth v4 compat...
-324e9f9 feature/Centro-004 [Centro-004] - Configure credentials authentication...
-0a3f089 feature/Centro-003 [Centro-003] - Add shared platform constraints module
-33af07e origin/develop    [Centro-002] - Implement core Prisma schema and migrations
-3f1aa31                   [Centro-001] - complete infrastructure setup and verification
+165358c feature/Centro-004 [Centro-004] - Update HANDOFF.md with current project state
+2b74e96 feature/Centro-004 [Centro-004] - Fix CSS/shadcn config and auth compatibility...
+d9ad431 feature/Centro-004 [Centro-004] - Configure credentials authentication...
+e230240 origin/develop    Merge pull request #7 from Rolfdood/feature/Centro-003
 ```
 
 ---
