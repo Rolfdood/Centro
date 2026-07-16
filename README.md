@@ -23,7 +23,7 @@ the application and database infrastructure for the one-week demo slice.
    docker compose up -d
    ```
 
-   This creates a container named `centro-postgres` on port `5432` with the
+   This creates a container named `centro-postgres` on port `5433` with the
 default credentials already reflected in `.env.example`.
 
 3. Copy the environment template:
