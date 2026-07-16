@@ -16,6 +16,10 @@ interface FailedAttempt {
   firstAttempt: number;
 }
 
+export type AuthenticatedUserResult =
+  | { ok: true; userId: string }
+  | { ok: false };
+
 // Demo-scope throttle store; replace with persistent storage before scaling out.
 const failedAttempts = new Map<string, FailedAttempt>();
 const THROTTLE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
@@ -152,3 +156,14 @@ export const authConfig = {
 } satisfies NextAuthConfig;
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+
+export async function requireAuthenticatedUser(): Promise<AuthenticatedUserResult> {
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    return { ok: false };
+  }
+
+  return { ok: true, userId };
+}

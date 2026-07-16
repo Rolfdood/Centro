@@ -1,0 +1,9 @@
+import { z } from "zod";
+import { PLATFORMS } from "@/lib/platforms/constraints";
+
+export const connectAccountSchema = z.object({
+  platform: z.enum(PLATFORMS),
+  handle: z.string().trim().min(1, "Handle is required"),
+});
+
+export type ConnectAccountInput = z.infer<typeof connectAccountSchema>;
