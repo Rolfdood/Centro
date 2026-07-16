@@ -1,6 +1,6 @@
 # Centro
 
-Centro is a centralized social media control hub. This repository currently contains
+Centro is a centralized social media control hub. This repository contains
 the application and database infrastructure for the one-week demo slice.
 
 ## Prerequisites
@@ -24,7 +24,7 @@ the application and database infrastructure for the one-week demo slice.
    ```
 
    This creates a container named `centro-postgres` on port `5433` with the
-default credentials already reflected in `.env.example`.
+   default credentials already reflected in `.env.example`.
 
 3. Copy the environment template:
 
@@ -35,13 +35,23 @@ default credentials already reflected in `.env.example`.
    The default `DATABASE_URL` in `.env.example` matches the Docker Compose service.
    Update it only if you use your own PostgreSQL instance. Never commit `.env`.
 
-4. Generate the Prisma Client:
+4. Apply database migrations:
 
    ```bash
-   pnpm prisma generate --allow-no-models
+   pnpm prisma migrate dev
    ```
 
-5. Start the development server:
+5. Seed the development user:
+
+   ```bash
+   pnpm prisma db seed
+   ```
+
+   This creates a dev account you can use to sign in immediately:
+   - **Email:** `dev@centro.local`
+   - **Password:** `password123`
+
+6. Start the development server:
 
    ```bash
    pnpm dev
@@ -49,20 +59,33 @@ default credentials already reflected in `.env.example`.
 
    Open [http://localhost:3000](http://localhost:3000).
 
+## Authentication
+
+The app uses **NextAuth.js v4** with credentials-based authentication:
+
+- **Sign up:** [http://localhost:3000/signup](http://localhost:3000/signup)
+- **Sign in:** [http://localhost:3000/login](http://localhost:3000/login)
+- Passwords are hashed with **argon2**
+- Failed login attempts are throttled (>5 failures in 15 min blocks the account)
+
 ## Verification commands
 
 Run these individually to confirm the health of the codebase:
 
 ```bash
 pnpm lint
-pnpm tsc --noEmit
+pnpm typecheck
 pnpm build
-pnpm prisma generate --allow-no-models
+pnpm prisma generate
 ```
 
-The initial Prisma schema deliberately contains only the PostgreSQL datasource and
-client generator. The application models and first migration are introduced with the
-next database feature.
+## Database commands
+
+```bash
+pnpm prisma migrate dev      # create / apply migrations
+pnpm prisma db seed          # seed development data
+pnpm prisma studio           # open database GUI
+```
 
 ## Stopping the database
 
