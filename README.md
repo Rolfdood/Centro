@@ -61,7 +61,7 @@ the application and database infrastructure for the one-week demo slice.
 
 ## Authentication
 
-The app uses **NextAuth.js v4** with credentials-based authentication:
+The app uses **Auth.js / NextAuth v5** with credentials-based authentication:
 
 - **Sign up:** [http://localhost:3000/signup](http://localhost:3000/signup)
 - **Sign in:** [http://localhost:3000/login](http://localhost:3000/login)

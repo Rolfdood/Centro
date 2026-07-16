@@ -1,5 +1,6 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth, { type NextAuthConfig } from "next-auth";
+import type { User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import argon2 from "argon2";
 import { z } from "zod";
@@ -59,6 +60,48 @@ function recordSuccess(email: string): void {
   failedAttempts.delete(email);
 }
 
+export async function authorizeCredentials(
+  credentials: unknown,
+): Promise<{ user?: User; error?: string }> {
+  const parsed = credentialsSchema.safeParse(credentials);
+  if (!parsed.success) {
+    return { error: "Invalid email or password." };
+  }
+
+  const { email, password } = parsed.data;
+  const normalizedEmail = email.toLowerCase();
+
+  const throttle = checkThrottle(normalizedEmail);
+  if (throttle.throttled) {
+    return { error: throttle.message ?? "Too many attempts. Try again later." };
+  }
+
+  const user = await db.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  if (!user || !user.passwordHash) {
+    recordFailure(normalizedEmail);
+    return { error: "Invalid email or password." };
+  }
+
+  const valid = await argon2.verify(user.passwordHash, password);
+  if (!valid) {
+    recordFailure(normalizedEmail);
+    return { error: "Invalid email or password." };
+  }
+
+  recordSuccess(normalizedEmail);
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    },
+  };
+}
+
 export const authConfig = {
   adapter: PrismaAdapter(db),
   session: {
@@ -76,40 +119,8 @@ export const authConfig = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const parsed = credentialsSchema.safeParse(credentials);
-        if (!parsed.success) {
-          return null;
-        }
-
-        const { email, password } = parsed.data;
-
-        const throttle = checkThrottle(email);
-        if (throttle.throttled) {
-          throw new Error(throttle.message ?? "Too many attempts.");
-        }
-
-        const user = await db.user.findUnique({
-          where: { email: email.toLowerCase() },
-        });
-
-        if (!user || !user.passwordHash) {
-          recordFailure(email);
-          return null;
-        }
-
-        const valid = await argon2.verify(user.passwordHash, password);
-        if (!valid) {
-          recordFailure(email);
-          return null;
-        }
-
-        recordSuccess(email);
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        };
+        const result = await authorizeCredentials(credentials);
+        return result.user ?? null;
       },
     }),
   ],

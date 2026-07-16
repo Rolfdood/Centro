@@ -7,7 +7,7 @@
 | Centro-001 | Complete & merged | `feature/Centro-001` | Merged to `develop` |
 | Centro-002 | Complete & merged | `feature/Centro-002` | Merged to `develop` |
 | Centro-003 | Complete & merged | `feature/Centro-003` | Merged to `develop` |
-| Centro-004 | Complete, PR open | `feature/Centro-004` | Draft PR #8 |
+| Centro-004 | Complete, PR open | `feature/Centro-004` | PR #8 |
 
 ---
 
@@ -119,8 +119,8 @@
 
 #### Environment
 - Updated `.env` and `.env.example`:
-  - Added `NEXTAUTH_URL="http://localhost:3000"`
-  - Added `NEXTAUTH_SECRET=""`
+  - Added `AUTH_URL="http://localhost:3000"`
+  - Added `AUTH_SECRET=""`
 
 ### Verification
 - `pnpm typecheck` passes.
@@ -177,6 +177,5 @@ pnpm prisma studio
 
 ## Next Steps
 
-1. Create PR for `feature/Centro-003` → `develop`
-2. After Centro-003 merge, create PR for `feature/Centro-004` → `develop`
-3. Continue with next issues (Centro-005+)
+1. Merge PR #8 for `feature/Centro-004` into `develop`
+2. Continue with next issues (Centro-005+)

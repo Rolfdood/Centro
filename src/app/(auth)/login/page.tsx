@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import { loginUser } from "./actions";
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -29,16 +30,15 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("credentials", {
+    const result = await loginUser({
       email,
       password,
-      redirect: false,
     });
 
     setLoading(false);
 
-    if (result?.error) {
-      setError("Invalid email or password.");
+    if (!result.success) {
+      setError(result.error ?? "Invalid email or password.");
       return;
     }
 
