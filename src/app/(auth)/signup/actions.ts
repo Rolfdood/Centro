@@ -4,9 +4,14 @@ import argon2 from "argon2";
 import { db } from "@/lib/db";
 import { registerSchema } from "@/lib/validations/auth";
 
+export type RegisterFieldErrors = Partial<
+  Record<"name" | "email" | "password" | "confirmPassword", string>
+>;
+
 export interface RegisterResult {
   success: boolean;
   error?: string;
+  fieldErrors?: RegisterFieldErrors;
 }
 
 export async function registerUser(
@@ -14,9 +19,22 @@ export async function registerUser(
 ): Promise<RegisterResult> {
   const parsed = registerSchema.safeParse(formData);
   if (!parsed.success) {
+    const fieldErrors: RegisterFieldErrors = {};
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0];
+      if (
+        typeof field === "string" &&
+        field in registerSchema.shape &&
+        !(field in fieldErrors)
+      ) {
+        fieldErrors[field as keyof RegisterFieldErrors] = issue.message;
+      }
+    }
+
     return {
       success: false,
       error: "Invalid input. Please check your details.",
+      fieldErrors,
     };
   }
 

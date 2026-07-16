@@ -137,6 +137,8 @@
 ## Branch State
 
 ```
+a5e84d1 feature/Centro-004 [Centro-004] - Address auth review follow-up
+4dbde56 feature/Centro-004 [Centro-004] - Address PR review feedback
 165358c feature/Centro-004 [Centro-004] - Update HANDOFF.md with current project state
 2b74e96 feature/Centro-004 [Centro-004] - Fix CSS/shadcn config and auth compatibility...
 d9ad431 feature/Centro-004 [Centro-004] - Configure credentials authentication...

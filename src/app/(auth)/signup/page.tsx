@@ -16,7 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { registerUser } from "./actions";
+import { registerUser, type RegisterFieldErrors } from "./actions";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,11 +24,13 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errors, setErrors] = useState<RegisterFieldErrors>({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setErrors({});
     setServerError("");
     setLoading(true);
 
@@ -42,6 +44,7 @@ export default function SignupPage() {
     setLoading(false);
 
     if (!result.success) {
+      setErrors(result.fieldErrors ?? {});
       setServerError(result.error ?? "Something went wrong.");
       return;
     }
@@ -70,6 +73,9 @@ export default function SignupPage() {
                 onChange={(e) => setName(e.target.value)}
                 required
               />
+              {errors.name && (
+                <p className="text-sm text-red-600">{errors.name}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -81,6 +87,9 @@ export default function SignupPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              {errors.email && (
+                <p className="text-sm text-red-600">{errors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -92,6 +101,9 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              {errors.password && (
+                <p className="text-sm text-red-600">{errors.password}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm password</Label>
@@ -103,6 +115,11 @@ export default function SignupPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
               />
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-600">
+                  {errors.confirmPassword}
+                </p>
+              )}
             </div>
             {serverError && (
               <p className="text-sm text-red-600">{serverError}</p>

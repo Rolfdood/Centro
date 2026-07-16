@@ -16,6 +16,7 @@ interface FailedAttempt {
   firstAttempt: number;
 }
 
+// Demo-scope throttle store; replace with persistent storage before scaling out.
 const failedAttempts = new Map<string, FailedAttempt>();
 const THROTTLE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_FAILED_ATTEMPTS = 5;
@@ -60,20 +61,33 @@ function recordSuccess(email: string): void {
   failedAttempts.delete(email);
 }
 
-export async function authorizeCredentials(
-  credentials: unknown,
-): Promise<{ user?: User; error?: string }> {
+export function getCredentialsThrottleError(credentials: unknown): string | null {
   const parsed = credentialsSchema.safeParse(credentials);
   if (!parsed.success) {
-    return { error: "Invalid email or password." };
+    return null;
+  }
+
+  const throttle = checkThrottle(parsed.data.email.toLowerCase());
+  if (throttle.throttled) {
+    return throttle.message ?? "Too many attempts. Try again later.";
+  }
+
+  return null;
+}
+
+export async function authorizeCredentials(
+  credentials: unknown,
+): Promise<User | null> {
+  const parsed = credentialsSchema.safeParse(credentials);
+  if (!parsed.success) {
+    return null;
   }
 
   const { email, password } = parsed.data;
   const normalizedEmail = email.toLowerCase();
-
-  const throttle = checkThrottle(normalizedEmail);
-  if (throttle.throttled) {
-    return { error: throttle.message ?? "Too many attempts. Try again later." };
+  const throttleError = getCredentialsThrottleError(parsed.data);
+  if (throttleError) {
+    return null;
   }
 
   const user = await db.user.findUnique({
@@ -82,23 +96,21 @@ export async function authorizeCredentials(
 
   if (!user || !user.passwordHash) {
     recordFailure(normalizedEmail);
-    return { error: "Invalid email or password." };
+    return null;
   }
 
   const valid = await argon2.verify(user.passwordHash, password);
   if (!valid) {
     recordFailure(normalizedEmail);
-    return { error: "Invalid email or password." };
+    return null;
   }
 
   recordSuccess(normalizedEmail);
 
   return {
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-    },
+    id: user.id,
+    email: user.email,
+    name: user.name,
   };
 }
 
@@ -119,8 +131,7 @@ export const authConfig = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const result = await authorizeCredentials(credentials);
-        return result.user ?? null;
+        return authorizeCredentials(credentials);
       },
     }),
   ],

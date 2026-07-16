@@ -2,7 +2,7 @@
 
 import { isRedirectError } from "next/dist/client/components/redirect";
 
-import { authorizeCredentials, signIn } from "@/lib/auth";
+import { getCredentialsThrottleError, signIn } from "@/lib/auth";
 
 export interface LoginResult {
   success: boolean;
@@ -21,11 +21,18 @@ function isLoginInput(value: unknown): value is { email: string; password: strin
 }
 
 export async function loginUser(formData: unknown): Promise<LoginResult> {
-  const result = await authorizeCredentials(formData);
-  if (!result.user || !isLoginInput(formData)) {
+  const throttleError = getCredentialsThrottleError(formData);
+  if (throttleError) {
     return {
       success: false,
-      error: result.error ?? "Invalid email or password.",
+      error: throttleError,
+    };
+  }
+
+  if (!isLoginInput(formData)) {
+    return {
+      success: false,
+      error: "Invalid email or password.",
     };
   }
 
