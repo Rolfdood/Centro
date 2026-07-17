@@ -128,6 +128,7 @@ export class BaseMockAdapter implements SocialPlatformAdapter {
   }
 
   async checkAuth(account: SocialAccount): Promise<AuthCheckResult> {
+    // Token expiry is not modeled by mocks; RECONNECT_REQUIRED is the inactive test state.
     return authCheckResultSchema.parse({
       active: account.status === "ACTIVE",
     });

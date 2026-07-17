@@ -56,7 +56,9 @@
 - Added `BaseMockAdapter`, shared by the five platform adapters for X, Facebook, Instagram, TikTok, and LinkedIn.
 - Mock publishing validates against the shared platform constraints, simulates approximately 600ms latency, returns deterministic mock URLs, and caches successful results by target and idempotency key.
 - Added deterministic failure simulation through `MOCK_FAILURE_RATE`, account-status auth checks, and deterministic analytics that grow over time from each target ID.
+- Documented that mock auth uses `RECONNECT_REQUIRED` as its inactive state; token expiry simulation belongs to real adapters.
 - Added the platform adapter registry. It returns only mock adapters while `MOCK_PLATFORMS=true` and fails clearly when real adapters are not configured.
+- Added adapter smoke coverage for idempotent publishing, constraint failures, auth status, failure-rate parsing, and deterministic analytics.
 
 ### Files
 - `src/lib/platforms/types.ts`
@@ -67,10 +69,11 @@
 - `src/lib/platforms/adapters/mockInstagram.ts`
 - `src/lib/platforms/adapters/mockTikTok.ts`
 - `src/lib/platforms/adapters/mockLinkedIn.ts`
+- `tests/platform-adapters.test.ts`
 
 ### Verification
 - The Centro-006 branch was rebased cleanly onto `origin/develop` after Centro-005 merged.
-- Run before opening the PR: `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
+- `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass locally.
 
 ---
 

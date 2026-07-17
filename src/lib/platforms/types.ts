@@ -2,6 +2,8 @@ import type { MediaAsset, PostTarget, SocialAccount } from "@prisma/client";
 import { z } from "zod";
 import type { Platform } from "./constraints";
 
+export type { Platform } from "./constraints";
+
 export interface PlatformConstraints {
   maxChars: number;
   maxImages: number;
