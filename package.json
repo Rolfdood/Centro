@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"No tests configured yet\""
+    "test": "pnpm exec tsx tests/platform-adapters.test.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
