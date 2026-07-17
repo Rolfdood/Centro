@@ -6,4 +6,9 @@ export const connectAccountSchema = z.object({
   handle: z.string().trim().min(1, "Handle is required"),
 });
 
+export const accountIdParamsSchema = z.object({
+  id: z.string().trim().min(1, "Account ID is required"),
+});
+
 export type ConnectAccountInput = z.infer<typeof connectAccountSchema>;
+export type AccountIdParams = z.infer<typeof accountIdParamsSchema>;
