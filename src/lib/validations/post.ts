@@ -47,6 +47,11 @@ export const createPostSchema = z
     })),
   }));
 
+export const postIdParamsSchema = z.object({
+  id: z.string().cuid("Post ID must be valid"),
+});
+
 export type PostTargetInput = z.infer<typeof postTargetInputSchema>;
 export type MediaInput = z.infer<typeof mediaInputSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type PostIdParams = z.infer<typeof postIdParamsSchema>;
