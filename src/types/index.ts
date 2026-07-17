@@ -83,7 +83,7 @@ export const accountListResponseSchema = z.object({
 
 export const accountResponseSchema = z.object({
   account: socialAccountDtoSchema,
-});
+}).strict();
 
 export const postListResponseSchema = z.object({
   posts: z.array(postListItemDtoSchema),

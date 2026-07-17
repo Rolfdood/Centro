@@ -1,10 +1,10 @@
 import { randomUUID } from "crypto";
 import { Prisma, type SocialAccount } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { requireAuthenticatedUser } from "@/lib/auth";
+import { getAuthenticatedUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { connectAccountSchema } from "@/lib/validations/account";
-import { validationErrorSchema } from "@/lib/validations/post";
+import { validationErrorSchema } from "@/lib/validations/common";
 import {
   accountListResponseSchema,
   accountResponseSchema,
@@ -32,7 +32,7 @@ function toSocialAccountDto(account: SocialAccount) {
 }
 
 export async function GET(): Promise<NextResponse> {
-  const authentication = await requireAuthenticatedUser();
+  const authentication = await getAuthenticatedUser();
   if (!authentication.ok) {
     return unauthorizedResponse();
   }
@@ -57,7 +57,7 @@ export async function GET(): Promise<NextResponse> {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const authentication = await requireAuthenticatedUser();
+  const authentication = await getAuthenticatedUser();
   if (!authentication.ok) {
     return unauthorizedResponse();
   }

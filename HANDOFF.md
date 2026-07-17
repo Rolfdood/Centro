@@ -9,7 +9,8 @@
 | `feature/Centro-003` | Merged to `develop` |
 | `feature/Centro-004` | Merged to `develop` |
 | `feature/Centro-005` | Merged to `develop` |
-| `feature/Centro-006` | In progress |
+| `feature/Centro-006` | Merged to `develop` |
+| `feature/Centro-007` | In progress |
 
 ---
 
@@ -77,11 +78,32 @@
 
 ---
 
+## Centro-007 - Mock Social Account APIs
+
+### Changes
+- Added authenticated `GET /api/accounts` to return the current user's social accounts in stable platform and handle order.
+- Added authenticated `POST /api/accounts` for mocked account connection. It validates platform and handle input, generates a mock token server-side, and returns a sanitized account DTO.
+- Added duplicate-connect handling for the user/platform/handle unique constraint with a sanitized `409` response.
+- Added authenticated `DELETE /api/accounts/[id]`, scoped to the current user. It validates the route parameter, removes accounts without targets, and returns a clear conflict instead of deleting account history.
+- Added account-ID validation and a strict single-account response DTO.
+
+### Files
+- `src/app/api/accounts/route.ts`
+- `src/app/api/accounts/[id]/route.ts`
+- `src/lib/validations/account.ts`
+- `src/types/index.ts`
+
+### Verification
+- The Centro-007 branch was rebased cleanly onto `origin/develop` after Centro-006 merged.
+- Run before opening the PR: `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
+
+---
+
 ## Branch State
 
 ```
-2ef1928 feature/Centro-006 [Centro-006] - Implement mock platform adapters and registry
-06bf912 origin/develop [Centro-005] - Define API contracts and validation schemas
+8e75f57 feature/Centro-007 [Centro-007] - Implement mock social account APIs
+a98c331 origin/develop [Centro-006] - Implement mock platform adapters and registry
 ```
 
 ---
@@ -119,5 +141,5 @@ pnpm prisma studio
 
 ## Next Steps
 
-1. Review Centro-006 and open its PR when approved.
-2. Continue with Centro-007 after Centro-006 review is complete.
+1. Review Centro-007 and open its PR when approved.
+2. Continue with Centro-008 after Centro-007 review is complete.
