@@ -81,6 +81,10 @@ export const accountListResponseSchema = z.object({
   accounts: z.array(socialAccountDtoSchema),
 }).strict();
 
+export const accountResponseSchema = z.object({
+  account: socialAccountDtoSchema,
+}).strict();
+
 export const postListResponseSchema = z.object({
   posts: z.array(postListItemDtoSchema),
 }).strict();
@@ -96,5 +100,6 @@ export type PostTargetSummaryDto = z.infer<typeof postTargetSummaryDtoSchema>;
 export type PostListItemDto = z.infer<typeof postListItemDtoSchema>;
 export type PostDetailDto = z.infer<typeof postDetailDtoSchema>;
 export type AccountListResponse = z.infer<typeof accountListResponseSchema>;
+export type AccountResponse = z.infer<typeof accountResponseSchema>;
 export type PostListResponse = z.infer<typeof postListResponseSchema>;
 export type PostDetailResponse = z.infer<typeof postDetailResponseSchema>;
