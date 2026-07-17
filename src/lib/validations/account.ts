@@ -7,7 +7,7 @@ export const connectAccountSchema = z.object({
 });
 
 export const accountIdParamsSchema = z.object({
-  id: z.string().trim().min(1, "Account ID is required"),
+  id: z.string().cuid("Account ID must be valid"),
 });
 
 export type ConnectAccountInput = z.infer<typeof connectAccountSchema>;

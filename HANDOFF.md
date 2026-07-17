@@ -85,17 +85,21 @@
 - Added authenticated `POST /api/accounts` for mocked account connection. It validates platform and handle input, generates a mock token server-side, and returns a sanitized account DTO.
 - Added duplicate-connect handling for the user/platform/handle unique constraint with a sanitized `409` response.
 - Added authenticated `DELETE /api/accounts/[id]`, scoped to the current user. It validates the route parameter, removes accounts without targets, and returns a clear conflict instead of deleting account history.
-- Added account-ID validation and a strict single-account response DTO.
+- Added structured field errors for invalid account payloads and route parameters, plus stricter cuid validation for account IDs.
+- Added dependency-injected account route handlers and smoke coverage for list, connect, duplicate, invalid, missing, target-conflict, and successful-disconnect paths.
+- Scheduling remains out of scope; a future scheduling phase must replace the target-history guard with scheduled-target cancellation.
 
 ### Files
 - `src/app/api/accounts/route.ts`
 - `src/app/api/accounts/[id]/route.ts`
+- `src/lib/accounts/route-handlers.ts`
 - `src/lib/validations/account.ts`
 - `src/types/index.ts`
+- `tests/account-api.test.ts`
 
 ### Verification
 - The Centro-007 branch was rebased cleanly onto `origin/develop` after Centro-006 merged.
-- Run before opening the PR: `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
+- `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass locally.
 
 ---
 
