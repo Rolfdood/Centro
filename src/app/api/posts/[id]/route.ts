@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAuthenticatedUser } from "@/lib/auth";
+import { getAuthenticatedUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { toPostDetailDto, postWithRelationsInclude } from "@/lib/posts";
-import { postIdParamsSchema, validationErrorSchema } from "@/lib/validations/post";
+import { validationErrorSchema } from "@/lib/validations/common";
+import { postIdParamsSchema } from "@/lib/validations/post";
 import { postDetailResponseSchema } from "@/types";
 
 interface PostRouteContext {
@@ -13,7 +14,7 @@ export async function GET(
   _request: Request,
   { params }: PostRouteContext,
 ): Promise<NextResponse> {
-  const authentication = await requireAuthenticatedUser();
+  const authentication = await getAuthenticatedUser();
   if (!authentication.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

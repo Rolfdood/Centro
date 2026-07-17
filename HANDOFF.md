@@ -10,7 +10,8 @@
 | `feature/Centro-004` | Merged to `develop` |
 | `feature/Centro-005` | Merged to `develop` |
 | `feature/Centro-006` | Merged to `develop` |
-| `feature/Centro-007` | In progress |
+| `feature/Centro-007` | Merged to `develop` |
+| `feature/Centro-008` | In progress |
 
 ---
 
@@ -103,11 +104,33 @@
 
 ---
 
+## Centro-008 - Idempotent Post APIs
+
+### Changes
+- Added authenticated `GET /api/posts`, returning the current user's posts in reverse creation order with sanitized list DTOs.
+- Added authenticated `POST /api/posts`, which validates the idempotency key, base text, selected active accounts, platform text limits, and duplicate target accounts before creating durable draft post targets.
+- Repeated idempotency keys return the original post for the owning user; a key owned by another user receives a generic conflict response.
+- Added authenticated `GET /api/posts/[id]`, scoped to the current user and returning `404` without revealing another user's post.
+- Added shared post mappers for stable list/detail DTOs, relation loading, and ISO date serialization.
+- Day 2 hard cuts are enforced explicitly: media uploads and scheduling requests receive validation errors rather than being accepted and discarded.
+
+### Files
+- `src/app/api/posts/route.ts`
+- `src/app/api/posts/[id]/route.ts`
+- `src/lib/posts.ts`
+- `src/lib/validations/post.ts`
+
+### Verification
+- The Centro-008 branch was rebased cleanly onto `origin/develop` after Centro-007 merged.
+- Run before opening the PR: `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
+
+---
+
 ## Branch State
 
 ```
-8e75f57 feature/Centro-007 [Centro-007] - Implement mock social account APIs
-a98c331 origin/develop [Centro-006] - Implement mock platform adapters and registry
+364b652 feature/Centro-008 [Centro-008] - Implement idempotent post APIs
+88e9c47 origin/develop [Centro-007] - Implement mock social account APIs
 ```
 
 ---
@@ -145,5 +168,5 @@ pnpm prisma studio
 
 ## Next Steps
 
-1. Review Centro-007 and open its PR when approved.
-2. Continue with Centro-008 after Centro-007 review is complete.
+1. Review Centro-008 and open its PR when approved.
+2. Continue with Day 3 publishing work after Centro-008 review is complete.

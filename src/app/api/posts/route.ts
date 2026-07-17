@@ -1,10 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { requireAuthenticatedUser } from "@/lib/auth";
+import { getAuthenticatedUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { toPostDetailDto, toPostListItemDto, postWithRelationsInclude } from "@/lib/posts";
 import { validateTextLength } from "@/lib/platforms/constraints";
-import { createPostSchema, validationErrorSchema } from "@/lib/validations/post";
+import { validationErrorSchema } from "@/lib/validations/common";
+import { createPostSchema } from "@/lib/validations/post";
 import { postDetailResponseSchema, postListResponseSchema } from "@/types";
 
 function unauthorizedResponse(): NextResponse {
@@ -36,7 +37,7 @@ async function findPostByIdempotencyKey(idempotencyKey: string) {
 }
 
 export async function GET(): Promise<NextResponse> {
-  const authentication = await requireAuthenticatedUser();
+  const authentication = await getAuthenticatedUser();
   if (!authentication.ok) {
     return unauthorizedResponse();
   }
@@ -62,7 +63,7 @@ export async function GET(): Promise<NextResponse> {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const authentication = await requireAuthenticatedUser();
+  const authentication = await getAuthenticatedUser();
   if (!authentication.ok) {
     return unauthorizedResponse();
   }
@@ -77,6 +78,18 @@ export async function POST(request: Request): Promise<NextResponse> {
   const input = createPostSchema.safeParse(body);
   if (!input.success) {
     return invalidRequestResponse("Invalid request.");
+  }
+
+  if (input.data.media.length > 0) {
+    return invalidRequestResponse("Media uploads are not supported yet.", {
+      media: ["Media uploads are not supported yet."],
+    });
+  }
+
+  if (input.data.scheduledAt) {
+    return invalidRequestResponse("Scheduling is not supported yet.", {
+      scheduledAt: ["Scheduling is not supported yet."],
+    });
   }
 
   try {
@@ -108,7 +121,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const fieldErrors: Record<string, string[]> = {};
     const targets = input.data.targets.map((target, index) => {
       const account = accountsById.get(target.accountId);
-      const adaptedText = target.adaptedText ?? input.data.baseText;
+      const adaptedText = target.adaptedText;
 
       if (!account) {
         throw new Error("Selected account was not loaded.");
