@@ -26,7 +26,7 @@ export const socialAccountDtoSchema = z.object({
   platform: z.enum(PLATFORMS),
   handle: z.string(),
   status: z.enum(accountStatuses),
-});
+}).strict();
 
 export const mediaAssetDtoSchema = z.object({
   id: z.string(),
@@ -36,7 +36,7 @@ export const mediaAssetDtoSchema = z.object({
   width: z.number().int().nullable(),
   height: z.number().int().nullable(),
   order: z.number().int().nonnegative(),
-});
+}).strict();
 
 export const postTargetDtoSchema = z.object({
   id: z.string(),
@@ -50,7 +50,7 @@ export const postTargetDtoSchema = z.object({
   error: z.string().nullable(),
   attempts: z.number().int().nonnegative(),
   account: socialAccountDtoSchema,
-});
+}).strict();
 
 export const postTargetSummaryDtoSchema = postTargetDtoSchema.pick({
   id: true,
@@ -60,7 +60,7 @@ export const postTargetSummaryDtoSchema = postTargetDtoSchema.pick({
   publishedUrl: true,
   error: true,
   account: true,
-});
+}).strict();
 
 export const postListItemDtoSchema = z.object({
   id: z.string(),
@@ -70,24 +70,24 @@ export const postListItemDtoSchema = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   targets: z.array(postTargetSummaryDtoSchema),
-});
+}).strict();
 
 export const postDetailDtoSchema = postListItemDtoSchema.extend({
   targets: z.array(postTargetDtoSchema),
   media: z.array(mediaAssetDtoSchema),
-});
+}).strict();
 
 export const accountListResponseSchema = z.object({
   accounts: z.array(socialAccountDtoSchema),
-});
+}).strict();
 
 export const postListResponseSchema = z.object({
   posts: z.array(postListItemDtoSchema),
-});
+}).strict();
 
 export const postDetailResponseSchema = z.object({
   post: postDetailDtoSchema,
-});
+}).strict();
 
 export type SocialAccountDto = z.infer<typeof socialAccountDtoSchema>;
 export type MediaAssetDto = z.infer<typeof mediaAssetDtoSchema>;

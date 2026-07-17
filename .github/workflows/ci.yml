@@ -18,6 +18,21 @@ jobs:
       AUTH_URL: http://localhost:3000
       DATABASE_URL: postgresql://centro:centro@localhost:5432/centro?schema=public
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: centro
+          POSTGRES_USER: centro
+          POSTGRES_PASSWORD: centro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U centro -d centro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -38,6 +53,9 @@ jobs:
 
       - name: Generate Prisma Client
         run: pnpm exec prisma generate
+
+      - name: Apply database migrations
+        run: pnpm exec prisma migrate deploy
 
       - name: Lint
         run: pnpm lint

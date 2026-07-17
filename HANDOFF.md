@@ -8,7 +8,7 @@
 | Centro-002 | Complete & merged | `feature/Centro-002` | Merged to `develop` |
 | Centro-003 | Complete & merged | `feature/Centro-003` | Merged to `develop` |
 | Centro-004 | Complete & merged | `feature/Centro-004` | Merged to `develop` |
-| Centro-005 | Complete, ready for review | `feature/Centro-005` | Not opened |
+| Centro-005 | Complete, ready for review | `feature/Centro-005` | Draft PR #13 |
 
 ---
 
@@ -30,8 +30,8 @@
   - `validationErrorSchema` defines the sanitized API validation-error response shape.
 - Added client-safe, Zod-validated response DTOs for social accounts, media assets, post targets, post lists, and post detail responses.
 - Added inferred TypeScript types for every request and response contract in `src/types/index.ts`.
-- Added `requireAuthenticatedUser()` in `src/lib/auth.ts` so route handlers can consistently resolve the authenticated user ID without exposing session details.
-- Added a GitHub Actions CI workflow for pull requests targeting `develop` and pushes to `develop`; it installs dependencies from the frozen lockfile, generates Prisma Client, and runs lint, typecheck, and build.
+- Added `getAuthenticatedUser()` in `src/lib/auth.ts` so route handlers can consistently resolve the authenticated user ID without exposing session details.
+- Added a GitHub Actions CI workflow for pull requests targeting `develop` and pushes to `develop`; it provisions PostgreSQL, installs dependencies from the frozen lockfile, generates Prisma Client, applies migrations, and runs lint, typecheck, and build.
 
 ### Files
 - `src/lib/auth.ts`
@@ -42,7 +42,7 @@
 
 ### Verification
 - The Centro-005 branch was rebased cleanly onto `origin/develop` after Centro-004 merged.
-- Run before opening the PR: `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
+- `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass locally.
 
 ---
 

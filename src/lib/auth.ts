@@ -157,7 +157,7 @@ export const authConfig = {
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
 
-export async function requireAuthenticatedUser(): Promise<AuthenticatedUserResult> {
+export async function getAuthenticatedUser(): Promise<AuthenticatedUserResult> {
   const session = await auth();
   const userId = session?.user?.id;
 

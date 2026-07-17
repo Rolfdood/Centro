@@ -1,8 +1,19 @@
 import { z } from "zod";
+export { validationErrorSchema } from "@/lib/validations/common";
+export type { ValidationErrorResponse } from "@/lib/validations/common";
 
 export const postTargetInputSchema = z.object({
   accountId: z.string().trim().min(1, "Account is required"),
   adaptedText: z.string().trim().min(1, "Adapted text cannot be empty").optional(),
+});
+
+export const mediaInputSchema = z.object({
+  url: z.string().url("Media URL must be valid"),
+  type: z.enum(["IMAGE", "VIDEO"]),
+  sizeBytes: z.number().int().nonnegative(),
+  width: z.number().int().nonnegative().nullable().optional(),
+  height: z.number().int().nonnegative().nullable().optional(),
+  order: z.number().int().nonnegative(),
 });
 
 export const createPostSchema = z
@@ -10,6 +21,8 @@ export const createPostSchema = z
     idempotencyKey: z.string().uuid("Idempotency key must be a UUID"),
     baseText: z.string().trim().min(1, "Base text is required"),
     targets: z.array(postTargetInputSchema).min(1, "Select at least one account"),
+    media: z.array(mediaInputSchema).default([]),
+    scheduledAt: z.iso.datetime().nullable().optional(),
   })
   .superRefine((data, context) => {
     const accountIds = new Set<string>();
@@ -25,13 +38,15 @@ export const createPostSchema = z
 
       accountIds.add(target.accountId);
     });
-  });
-
-export const validationErrorSchema = z.object({
-  error: z.string(),
-  fieldErrors: z.record(z.string(), z.array(z.string())).optional(),
-});
+  })
+  .transform((data) => ({
+    ...data,
+    targets: data.targets.map((target) => ({
+      ...target,
+      adaptedText: target.adaptedText ?? data.baseText,
+    })),
+  }));
 
 export type PostTargetInput = z.infer<typeof postTargetInputSchema>;
+export type MediaInput = z.infer<typeof mediaInputSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
-export type ValidationErrorResponse = z.infer<typeof validationErrorSchema>;
