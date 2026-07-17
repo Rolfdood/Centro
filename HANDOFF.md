@@ -113,12 +113,15 @@
 - Added authenticated `GET /api/posts/[id]`, scoped to the current user and returning `404` without revealing another user's post.
 - Added shared post mappers for stable list/detail DTOs, relation loading, and ISO date serialization.
 - Day 2 hard cuts are enforced explicitly: media uploads and scheduling requests receive validation errors rather than being accepted and discarded.
+- Added post API smoke coverage for successful creation, idempotent replay, and cross-user idempotency conflicts.
 
 ### Files
 - `src/app/api/posts/route.ts`
 - `src/app/api/posts/[id]/route.ts`
 - `src/lib/posts.ts`
+- `src/lib/posts/route-handlers.ts`
 - `src/lib/validations/post.ts`
+- `tests/post-api.test.ts`
 
 ### Verification
 - The Centro-008 branch was rebased cleanly onto `origin/develop` after Centro-007 merged.
