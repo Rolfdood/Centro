@@ -12,7 +12,8 @@
 | `feature/Centro-006` | Merged to `develop` |
 | `feature/Centro-007` | Merged to `develop` |
 | `feature/Centro-008` | Merged to `develop` |
-| `feature/Centro-009` | In progress |
+| `feature/Centro-009` | Merged to `develop` |
+| `feature/Centro-010` | In progress |
 
 ---
 
@@ -56,11 +57,32 @@
 
 ---
 
+## Centro-010 - Publish-Now API Route and Backend Smoke Tests
+
+### Changes
+- Added authenticated `POST /api/posts/[id]/publish`, backed by the Centro-009 publishing service.
+- Added a dependency-injected publish route handler using the existing post ID schema and authenticated-user boundary.
+- Restricts publishing to user-owned posts and returns `404` for missing or foreign posts without disclosing their existence.
+- Returns the existing post-detail DTO after publishing and uses sanitized `401`, `400`, and `500` responses for unauthorized, invalid, and unexpected-error paths.
+- Added publish API smoke coverage for successful, partially failed, repeated, invalid-ID, missing-post, and unauthenticated requests.
+
+### Files
+- `src/app/api/posts/[id]/publish/route.ts`
+- `src/lib/posts/route-handlers.ts`
+- `tests/publish-api.test.ts`
+- `package.json`
+
+### Verification
+- Publish API smoke tests pass, together with the publisher and existing platform, account, and post API smoke suites.
+- TypeScript verification and linting for the publish route implementation and tests pass.
+
+---
+
 ## Branch State
 
 ```
-4e04f9b feature/Centro-009 [Centro-009] - Correct Centro-008 handoff status
-3a7a075 origin/develop [Centro-008] - Implement idempotent post APIs
+2100e04 feature/Centro-010 [Centro-010] - Add publish-now API route
+08a51ca origin/develop [Centro-009] - Implement idempotent publish service and target status handling
 ```
 
 ---
@@ -98,5 +120,5 @@ pnpm prisma studio
 
 ## Next Steps
 
-1. Review Centro-009 and open its PR when approved.
-2. Stack the publish-now route work on top of Centro-009 after review.
+1. Review Centro-010 after reviewing its Centro-009 dependency.
+2. Open pull requests only after both stacked branches are approved.
