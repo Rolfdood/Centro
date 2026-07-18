@@ -11,7 +11,7 @@
 | `feature/Centro-005` | Merged to `develop` |
 | `feature/Centro-006` | Merged to `develop` |
 | `feature/Centro-007` | Merged to `develop` |
-| `feature/Centro-008` | In progress |
+| `feature/Centro-008` | Merged to `develop` |
 | `feature/Centro-009` | In progress |
 
 ---
