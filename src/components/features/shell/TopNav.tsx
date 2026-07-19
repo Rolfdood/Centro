@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 
+import { getInitials } from "@/lib/utils";
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,18 +23,6 @@ interface TopNavProps {
     email: string;
     timezone: string;
   };
-}
-
-function getInitials(name: string | null, email: string): string {
-  if (name) {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-  }
-  return email.slice(0, 2).toUpperCase();
 }
 
 const PAGE_TITLES: Record<string, string> = {
@@ -56,7 +46,7 @@ export function TopNav({ user }: TopNavProps) {
   const title = getPageTitle(pathname);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-card px-4 md:h-14">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-card px-4">
       {/* Mobile hamburger */}
       <div className="flex items-center md:hidden">
         <Sheet>

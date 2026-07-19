@@ -3,6 +3,8 @@
 import { LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 
+import { getInitials } from "@/lib/utils";
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -23,14 +25,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ user }: UserMenuProps) {
-  const initials = user.name
-    ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
-    : user.email.slice(0, 2).toUpperCase();
+  const initials = getInitials(user.name, user.email);
 
   return (
     <DropdownMenu>
