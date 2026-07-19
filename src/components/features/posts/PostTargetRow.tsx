@@ -1,0 +1,62 @@
+import { RotateCw } from "lucide-react";
+
+import { PlatformDotGroup } from "@/components/features/posts/PlatformDotGroup";
+import { PostExcerpt } from "@/components/features/posts/PostExcerpt";
+import {
+  PostStatusBadge,
+  postStatusDotClassName,
+} from "@/components/features/posts/PostStatusBadge";
+import { Button } from "@/components/ui/button";
+import type { PostListItemDto } from "@/types";
+
+interface PostTargetRowProps {
+  post: PostListItemDto;
+  dateLabel: string;
+  onRetry: (postId: string) => void;
+}
+
+export function PostTargetRow({ post, dateLabel, onRetry }: PostTargetRowProps) {
+  const canRetry = post.status === "FAILED" || post.status === "PARTIALLY_FAILED";
+
+  return (
+    <article className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-muted/30 md:grid-cols-[auto_minmax(0,1fr)_6rem_8.5rem_10rem] md:items-center md:gap-4">
+      <span
+        aria-label={`${post.status.toLowerCase().replaceAll("_", " ")} status`}
+        className={`mt-1.5 size-2 shrink-0 rounded-full md:mt-0 ${postStatusDotClassName(post.status)}`}
+      />
+
+      <PostExcerpt text={post.baseText} />
+
+      <div className="col-start-2 flex items-center justify-between gap-3 md:col-start-auto md:justify-center">
+        <span className="text-xs text-muted-foreground md:hidden">Platforms</span>
+        <PlatformDotGroup platforms={post.targets.map((target) => target.platform)} />
+      </div>
+
+      <div className="col-start-2 flex items-center justify-between gap-3 md:col-start-auto md:justify-center">
+        <span className="text-xs text-muted-foreground md:hidden">Status</span>
+        <PostStatusBadge status={post.status} />
+      </div>
+
+      <div className="col-start-2 flex items-center justify-between gap-3 md:col-start-auto md:justify-end">
+        {canRetry ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="h-auto gap-1 px-0 py-0 text-destructive hover:bg-transparent hover:text-destructive"
+            onClick={() => onRetry(post.id)}
+          >
+            <RotateCw className="size-3" />
+            Retry
+          </Button>
+        ) : null}
+        <time
+          className="font-mono text-xs text-muted-foreground"
+          dateTime={post.scheduledAt ?? post.createdAt}
+        >
+          {dateLabel}
+        </time>
+      </div>
+    </article>
+  );
+}
