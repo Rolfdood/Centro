@@ -3,6 +3,7 @@ import { TrendBadge } from "./TrendBadge";
 interface MetricsCardProps {
   label: string;
   value: string;
+  numericValue: number;
   trend: string;
   trendDirection?: "up" | "down" | "neutral";
   isStale?: boolean;
@@ -11,6 +12,7 @@ interface MetricsCardProps {
 export function MetricsCard({
   label,
   value,
+  numericValue,
   trend,
   trendDirection = "neutral",
   isStale = false,
@@ -28,7 +30,7 @@ export function MetricsCard({
         ) : null}
       </div>
       <div className="flex items-baseline gap-2">
-        <data className="font-mono text-2xl leading-none tracking-tight tabular-nums" value={value}>
+        <data className="font-mono text-2xl leading-none tracking-tight tabular-nums" value={numericValue}>
           {value}
         </data>
         <TrendBadge value={trend} trend={trendDirection} />

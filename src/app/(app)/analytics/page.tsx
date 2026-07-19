@@ -8,11 +8,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 const DEMO_METRICS = [
-  { label: "Posts this month", value: "142", trend: "+12%", trendDirection: "up" },
-  { label: "Total impressions", value: "1.2M", trend: "-4%", trendDirection: "down" },
-  { label: "Avg. engagement", value: "4.8%", trend: "+0.2%", trendDirection: "up" },
-  { label: "Link clicks", value: "8,405", trend: "+22%", trendDirection: "up" },
-  { label: "Conversion rate", value: "2.1%", trend: "—", trendDirection: "neutral", isStale: true },
+  { label: "Posts this month", value: "142", numericValue: 142, trend: "+12%", trendDirection: "up" },
+  { label: "Total impressions", value: "1.2M", numericValue: 1200000, trend: "-4%", trendDirection: "down" },
+  { label: "Avg. engagement", value: "4.8%", numericValue: 4.8, trend: "+0.2%", trendDirection: "up" },
+  { label: "Link clicks", value: "8,405", numericValue: 8405, trend: "+22%", trendDirection: "up" },
+  { label: "Conversion rate", value: "2.1%", numericValue: 2.1, trend: "—", trendDirection: "neutral", isStale: true },
 ] as const;
 
 const DEMO_POST_METRICS: DemoPostMetric[] = [
@@ -73,10 +73,10 @@ export default function AnalyticsPage() {
           <p className="text-sm text-muted-foreground">Last 30 days compared with the previous period.</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
+          <span id="analytics-refresh-note" className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
             Next refresh in 4:12
           </span>
-          <Button variant="outline" size="sm" disabled>
+          <Button aria-describedby="analytics-refresh-note" variant="outline" size="sm" disabled>
             <RefreshCw className="size-3.5" />
             Refresh metrics
           </Button>

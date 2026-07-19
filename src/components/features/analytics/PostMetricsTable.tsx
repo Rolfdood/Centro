@@ -48,7 +48,16 @@ export function PostMetricsTable({ rows }: PostMetricsTableProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {rows.length === 0 ? (
+            <tr>
+              <td
+                className="px-4 py-10 text-center font-mono text-xs text-muted-foreground"
+                colSpan={6}
+              >
+                No metrics available.
+              </td>
+            </tr>
+          ) : rows.map((row) => {
             const platform = PLATFORM_ONBOARDING_DETAILS[row.platform];
 
             return (
