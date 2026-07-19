@@ -20,7 +20,7 @@ interface MockConsentDialogProps {
   platform: Platform | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConnected: () => void;
+  onConnected?: () => void;
 }
 
 const PLATFORM_NAMES: Record<Platform, string> = {
@@ -57,7 +57,7 @@ export function MockConsentDialog({
     try {
       await connectAccount.mutateAsync({ platform, handle });
       onOpenChange(false);
-      onConnected();
+      onConnected?.();
     } catch (connectionError) {
       setError(
         connectionError instanceof Error
