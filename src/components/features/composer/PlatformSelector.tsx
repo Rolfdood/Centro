@@ -21,6 +21,10 @@ export function PlatformSelector({
   onSelect,
   onDeselect,
 }: PlatformSelectorProps) {
+  const hasReconnectRequiredAccount = accounts.some(
+    (account) => account.status === "RECONNECT_REQUIRED",
+  );
+
   if (accounts.length === 0) {
     return (
       <section aria-labelledby="platforms-heading">
@@ -87,7 +91,9 @@ export function PlatformSelector({
                 <PlatformIcon platform={account.platform} className="size-4 text-[8px]" />
                 <span className="max-w-40 truncate">{account.handle}</span>
                 {reconnectRequired ? (
-                  <span className="sr-only">Reconnect required</span>
+                  <span className="text-[10px] normal-case text-muted-foreground">
+                    Reconnect required
+                  </span>
                 ) : null}
               </Button>
             </span>
@@ -108,6 +114,12 @@ export function PlatformSelector({
       <p className="mt-2 text-xs text-muted-foreground">
         Select the connected accounts that should receive this post.
       </p>
+      {hasReconnectRequiredAccount ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Reconnect required accounts must be reconnected in Settings before
+          they can be selected.
+        </p>
+      ) : null}
     </section>
   );
 }

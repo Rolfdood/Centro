@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-
 import { useAccounts } from "@/lib/api";
 import { useComposerStore } from "@/stores/composerStore";
 
@@ -11,7 +9,6 @@ import { PublishFooter } from "./PublishFooter";
 
 export function Composer() {
   const { data: accounts = [], isLoading, isError } = useAccounts();
-  const beginNewDraft = useComposerStore((state) => state.beginNewDraft);
   const baseText = useComposerStore((state) => state.baseText);
   const selectedAccountIds = useComposerStore(
     (state) => state.selectedAccountIds,
@@ -19,10 +16,6 @@ export function Composer() {
   const setBaseText = useComposerStore((state) => state.setBaseText);
   const selectAccount = useComposerStore((state) => state.selectAccount);
   const deselectAccount = useComposerStore((state) => state.deselectAccount);
-
-  useEffect(() => {
-    beginNewDraft();
-  }, [beginNewDraft]);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col pb-4">
@@ -37,10 +30,13 @@ export function Composer() {
           </section>
         ) : isError ? (
           <section
-            aria-labelledby="platforms-heading"
+            aria-labelledby="platform-load-error-heading"
             className="rounded-lg border border-destructive/40 bg-destructive/10 p-4"
           >
-            <h2 id="platforms-heading" className="font-medium text-foreground">
+            <h2
+              id="platform-load-error-heading"
+              className="font-medium text-foreground"
+            >
               Unable to load connected accounts
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
