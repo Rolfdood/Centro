@@ -112,7 +112,7 @@
 ## Branch State
 
 ```
-af3c37a origin/develop [Centro-011] - Add AI adaptation and retry APIs
+2cdd31f origin/develop [Centro-023] - Add auth onboarding flow
 ```
 
 ---
@@ -123,6 +123,7 @@ af3c37a origin/develop [Centro-011] - Add AI adaptation and retry APIs
 # Setup
 pnpm install
 docker compose up -d
+pnpm prisma generate
 pnpm prisma migrate dev
 pnpm prisma db seed
 
@@ -130,6 +131,7 @@ pnpm prisma db seed
 pnpm dev
 
 # Verification
+pnpm test
 pnpm typecheck
 pnpm lint
 pnpm build

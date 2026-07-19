@@ -133,6 +133,19 @@ async function run(): Promise<void> {
   };
   const disconnectHandlers = createAccountRouteHandlers(disconnectDependencies);
 
+  const unauthenticatedDisconnectHandlers = createAccountRouteHandlers({
+    ...disconnectDependencies,
+    getAuthenticatedUser: async () => ({ ok: false as const }),
+  });
+  assert.equal(
+    (
+      await unauthenticatedDisconnectHandlers.DELETE(new Request("http://localhost"), {
+        params: { id: removableAccountId },
+      })
+    ).status,
+    401,
+  );
+
   const missingResponse = await disconnectHandlers.DELETE(new Request("http://localhost"), {
     params: { id: missingAccountId },
   });
