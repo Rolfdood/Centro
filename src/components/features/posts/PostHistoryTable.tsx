@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, FileText, Plus, X } from "lucide-react";
 
-import { PostHistoryRow } from "@/components/features/posts/PostTargetRow";
+import { PostHistoryRow } from "@/components/features/posts/PostHistoryRow";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { usePosts } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -81,8 +81,11 @@ function LoadingPosts() {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card" aria-busy="true">
       <div className="hidden border-b border-border bg-muted/30 px-4 py-3 md:grid md:grid-cols-[auto_minmax(0,1fr)_6rem_8.5rem_10rem] md:gap-4">
-        <span />
+        <span className="size-2" />
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Post content</span>
+        <span className="text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">Platforms</span>
+        <span className="text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</span>
+        <span className="text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Date</span>
       </div>
       {[0, 1, 2].map((item) => (
         <div key={item} className="flex items-center gap-4 border-b border-border px-4 py-5 last:border-b-0">
