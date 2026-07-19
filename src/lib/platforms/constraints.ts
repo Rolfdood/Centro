@@ -85,7 +85,7 @@ export const PLATFORM_ONBOARDING_DETAILS: Record<Platform, PlatformOnboardingDet
   X: {
     name: "X (Twitter)",
     description: `Text posts, ${PLATFORM_CONSTRAINTS.X.maxChars} chars`,
-    color: "#ffffff",
+    color: "#1da1f2",
   },
   FACEBOOK: {
     name: "Facebook",
