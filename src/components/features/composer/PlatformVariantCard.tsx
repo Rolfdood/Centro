@@ -17,14 +17,18 @@ interface PlatformVariantCardProps {
   variant: ComposerVariant;
   media: ComposerMedia[];
   errors: string[];
+  isGenerating: boolean;
   onChange: (value: string) => void;
+  onRegenerate: () => void;
 }
 
 export function PlatformVariantCard({
   variant,
   media,
   errors,
+  isGenerating,
   onChange,
+  onRegenerate,
 }: PlatformVariantCardProps) {
   const constraints = getConstraints(variant.platform);
   const requirement = getMediaRequirementMessage(variant.platform);
@@ -67,24 +71,38 @@ export function PlatformVariantCard({
             type="button"
             variant="ghost"
             size="icon-xs"
-            disabled
-            title="AI regeneration is coming soon"
-            aria-label={`Regenerate ${variant.platform} variant with AI (coming soon)`}
+            disabled={isGenerating}
+            onClick={onRegenerate}
+            title={`Regenerate ${variant.platform} variant with AI`}
+            aria-label={`Regenerate ${variant.platform} variant with AI`}
           >
-            <RefreshCw />
+            <RefreshCw className={isGenerating ? "animate-spin" : undefined} />
           </Button>
         </div>
       </div>
 
-      <textarea
-        value={variant.adaptedText}
-        onChange={(event) => onChange(event.target.value)}
-        aria-label={`${variant.platform} post text`}
-        aria-describedby={`variant-count-${variant.accountId} variant-errors-${variant.accountId}`}
-        aria-invalid={errors.length > 0}
-        className="mt-4 min-h-32 w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        placeholder={`Write your ${variant.platform} post...`}
-      />
+      {isGenerating ? (
+        <div
+          className="mt-4 space-y-3"
+          role="status"
+          aria-label={`Generating ${variant.platform} variant`}
+        >
+          <div className="h-5 w-11/12 animate-pulse rounded bg-muted" />
+          <div className="h-5 w-full animate-pulse rounded bg-muted" />
+          <div className="h-5 w-4/5 animate-pulse rounded bg-muted" />
+          <span className="sr-only">Generating AI suggestion…</span>
+        </div>
+      ) : (
+        <textarea
+          value={variant.adaptedText}
+          onChange={(event) => onChange(event.target.value)}
+          aria-label={`${variant.platform} post text`}
+          aria-describedby={`variant-count-${variant.accountId} variant-errors-${variant.accountId}`}
+          aria-invalid={errors.length > 0}
+          className="mt-4 min-h-32 w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder={`Write your ${variant.platform} post...`}
+        />
+      )}
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
         <span

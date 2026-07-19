@@ -15,7 +15,8 @@ Object.defineProperty(globalThis, "localStorage", {
 });
 
 async function run(): Promise<void> {
-  const { useComposerStore } = await import("../src/stores/composerStore");
+  const { requiresAiRegenerationConfirmation, useComposerStore } =
+    await import("../src/stores/composerStore");
   const initialKey = useComposerStore.getState().idempotencyKey;
   useComposerStore.getState().beginNewDraft();
 
@@ -54,6 +55,38 @@ async function run(): Promise<void> {
   assert.equal(
     useComposerStore.getState().variants[linkedInAccount.id]?.adaptedText,
     "Centro ships another update.",
+  );
+
+  useComposerStore
+    .getState()
+    .setAiVariant(linkedInAccount.id, "An AI-adapted LinkedIn post.");
+  assert.deepEqual(useComposerStore.getState().variants[linkedInAccount.id], {
+    accountId: linkedInAccount.id,
+    platform: "LINKEDIN",
+    adaptedText: "An AI-adapted LinkedIn post.",
+    isManuallyEdited: false,
+    isAiGenerated: true,
+  });
+  assert.equal(
+    requiresAiRegenerationConfirmation(
+      useComposerStore.getState().variants[linkedInAccount.id]!,
+    ),
+    false,
+  );
+
+  useComposerStore.getState().setBaseText("A new base draft.");
+  assert.deepEqual(useComposerStore.getState().variants[linkedInAccount.id], {
+    accountId: linkedInAccount.id,
+    platform: "LINKEDIN",
+    adaptedText: "A new base draft.",
+    isManuallyEdited: false,
+    isAiGenerated: false,
+  });
+  assert.equal(
+    requiresAiRegenerationConfirmation(
+      useComposerStore.getState().variants[xAccount.id]!,
+    ),
+    true,
   );
 
   useComposerStore.getState().deselectAccount(xAccount.id);

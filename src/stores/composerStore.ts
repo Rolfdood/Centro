@@ -33,6 +33,12 @@ export interface ComposerAccountSelection {
   platform: Platform;
 }
 
+export function requiresAiRegenerationConfirmation(
+  variant: ComposerVariant,
+): boolean {
+  return variant.isManuallyEdited;
+}
+
 interface ComposerDraftState {
   idempotencyKey: string;
   baseText: string;
@@ -81,7 +87,11 @@ export const useComposerStore = create<ComposerStore>()(
               accountId,
               variant.isManuallyEdited
                 ? variant
-                : { ...variant, adaptedText: baseText },
+                : {
+                    ...variant,
+                    adaptedText: baseText,
+                    isAiGenerated: false,
+                  },
             ]),
           ),
         })),
