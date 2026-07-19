@@ -51,7 +51,10 @@ export function derivePostStatus(targets: ReadonlyArray<{ status: TargetStatus }
   return "DRAFT";
 }
 
-function safeError(result: Extract<PublishResult, { ok: false }>, platform: Platform): string {
+export function safePublishError(
+  result: Extract<PublishResult, { ok: false }>,
+  platform: Platform,
+): string {
   if (result.authExpired) return `Reconnect your ${platform} account to publish this target.`;
   return result.error.trim().slice(0, 500) || "Unable to publish this target.";
 }
@@ -95,7 +98,7 @@ export function createPublisher(dependencies: PublisherDependencies) {
           await dependencies.markTargetPublished(target.id, result.publishedUrl, now());
         } else {
           if (result.authExpired) await dependencies.markAccountReconnectRequired(target.accountId);
-          await dependencies.markTargetFailed(target.id, safeError(result, target.platform));
+          await dependencies.markTargetFailed(target.id, safePublishError(result, target.platform));
         }
       } catch (error) {
         console.error("Unable to publish target.", { postId: post.id, targetId: target.id, error });

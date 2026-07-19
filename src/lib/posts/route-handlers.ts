@@ -48,6 +48,11 @@ export interface PublishPostRouteDependencies {
   publishPost: (id: string, userId: string) => Promise<PostWithRelations | null>;
 }
 
+export interface RetryPostRouteDependencies {
+  getAuthenticatedUser: typeof getAuthenticatedUser;
+  retryPost: (id: string, userId: string) => Promise<PostWithRelations | null>;
+}
+
 function unauthorizedResponse(): NextResponse {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
@@ -299,6 +304,38 @@ export function createPublishPostRouteHandler(
       console.error("Unable to publish post.", error);
       return NextResponse.json(
         { error: "Unable to publish post." },
+        { status: 500 },
+      );
+    }
+  };
+}
+
+export function createRetryPostRouteHandler(
+  dependencies: RetryPostRouteDependencies,
+) {
+  return async (
+    _request: Request,
+    { params }: { params: { id: string } },
+  ): Promise<NextResponse> => {
+    const authentication = await dependencies.getAuthenticatedUser();
+    if (!authentication.ok) return unauthorizedResponse();
+
+    const parsed = postIdParamsSchema.safeParse(params);
+    if (!parsed.success) {
+      return invalidRequestResponse("Invalid request.", fieldErrors(parsed.error));
+    }
+
+    try {
+      const post = await dependencies.retryPost(parsed.data.id, authentication.userId);
+      if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
+
+      return NextResponse.json(
+        postDetailResponseSchema.parse({ post: toPostDetailDto(post) }),
+      );
+    } catch (error) {
+      console.error("Unable to retry post.", error);
+      return NextResponse.json(
+        { error: "Unable to retry post." },
         { status: 500 },
       );
     }

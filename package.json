@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm exec tsx tests/platform-adapters.test.ts && pnpm exec tsx tests/account-api.test.ts && pnpm exec tsx tests/post-api.test.ts && pnpm exec tsx tests/publisher.test.ts && pnpm exec tsx tests/publish-api.test.ts"
+    "test": "tsx tests/platform-adapters.test.ts && tsx tests/account-api.test.ts && tsx tests/post-api.test.ts && tsx tests/publisher.test.ts && tsx tests/publish-api.test.ts && tsx tests/ai-api.test.ts && tsx tests/retry.test.ts && tsx tests/retry-api.test.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
