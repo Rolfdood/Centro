@@ -66,6 +66,7 @@ export default function ConnectedAccountsPage() {
         </div>
         <ConnectAccountButton
           label="Add platform"
+          showIcon
           onClick={() => setAddPlatformOpen(true)}
         />
       </section>
@@ -169,7 +170,6 @@ export default function ConnectedAccountsPage() {
         onOpenChange={(open) => {
           if (!open) setSelectedPlatform(null);
         }}
-        onConnected={() => undefined}
       />
     </div>
   );

@@ -103,8 +103,8 @@ export function AccountCard({ platform, account, onConnect }: AccountCardProps) 
             <DialogHeader>
               <DialogTitle>Disconnect {details.name}?</DialogTitle>
               <DialogDescription>
-                Centro will lose access to {account.handle}. If this account has
-                scheduled posts, disconnecting it will cancel those posts.
+                Centro will lose access to {account.handle}. Accounts with
+                existing post history cannot be disconnected.
               </DialogDescription>
             </DialogHeader>
 

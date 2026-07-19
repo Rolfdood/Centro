@@ -24,7 +24,8 @@ export function PlatformIcon({ platform, className }: PlatformIconProps) {
     <span
       aria-label={details.name}
       className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-full font-mono text-xs font-semibold text-white",
+        "flex size-9 shrink-0 items-center justify-center rounded-full font-mono text-xs font-semibold",
+        platform === "X" ? "text-background" : "text-white",
         className,
       )}
       style={{ backgroundColor: details.color }}
