@@ -87,6 +87,9 @@ async function run(): Promise<void> {
   assert.equal(derivePostStatus([{ status: "PUBLISHED" }, { status: "FAILED" }]), "PARTIALLY_FAILED");
   assert.equal(derivePostStatus([{ status: "FAILED" }, { status: "FAILED" }]), "FAILED");
   assert.equal(derivePostStatus([{ status: "PUBLISHED" }, { status: "FAILED" }, { status: "DRAFT" }]), "DRAFT");
+  assert.equal(derivePostStatus([{ status: "SCHEDULED" }]), "SCHEDULED");
+  assert.equal(derivePostStatus([{ status: "CANCELLED" }, { status: "MISSED" }]), "FAILED");
+  assert.equal(derivePostStatus([{ status: "PUBLISHED" }, { status: "MISSED" }]), "PARTIALLY_FAILED");
 
   const success = fixture();
   const successful = adapter("X", async () => ({ ok: true, publishedUrl: "https://mock.local/x" }));
@@ -123,6 +126,13 @@ async function run(): Promise<void> {
   assert.equal(inactive.post.targets[0].status, "FAILED");
   assert.equal(inactive.post.targets[0].account.status, "RECONNECT_REQUIRED");
   assert.equal(fourth.errors.get("target-x"), "Reconnect your X account to publish this target.");
+
+  const expired = fixture();
+  const expiredX = adapter("X", async () => ({ ok: false, error: "token expired", authExpired: true, retryable: false }));
+  const expiredPublisher = service(expired.post, adaptersFor(expiredX, successfulLinkedIn));
+  await expiredPublisher.publish("post-1", "user-1");
+  assert.equal(expiredPublisher.errors.get("target-x"), "Reconnect your X account to publish this target.");
+  assert.equal(expired.post.targets[0].account.status, "RECONNECT_REQUIRED");
 
   const throwing = fixture();
   const throwingX = adapter("X", async () => { throw new Error("provider token and stack detail"); });

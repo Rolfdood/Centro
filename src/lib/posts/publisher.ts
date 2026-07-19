@@ -44,16 +44,15 @@ export interface PublisherDependencies {
 export function derivePostStatus(targets: ReadonlyArray<{ status: TargetStatus }>): PostStatus {
   if (targets.some((target) => target.status === "PUBLISHING")) return "PUBLISHING";
   if (targets.some((target) => target.status === "DRAFT")) return "DRAFT";
+  if (targets.some((target) => target.status === "SCHEDULED")) return "SCHEDULED";
   if (targets.length > 0 && targets.every((target) => target.status === "PUBLISHED")) return "PUBLISHED";
-  if (targets.length > 0 && targets.every((target) => target.status === "FAILED")) return "FAILED";
-  if (targets.some((target) => target.status === "PUBLISHED") && targets.some((target) => target.status === "FAILED")) {
-    return "PARTIALLY_FAILED";
-  }
+  if (targets.some((target) => target.status === "PUBLISHED")) return "PARTIALLY_FAILED";
+  if (targets.length > 0) return "FAILED";
   return "DRAFT";
 }
 
-function safeError(result: Extract<PublishResult, { ok: false }>): string {
-  if (result.authExpired) return "Reconnect your account to publish this target.";
+function safeError(result: Extract<PublishResult, { ok: false }>, platform: Platform): string {
+  if (result.authExpired) return `Reconnect your ${platform} account to publish this target.`;
   return result.error.trim().slice(0, 500) || "Unable to publish this target.";
 }
 
@@ -96,7 +95,7 @@ export function createPublisher(dependencies: PublisherDependencies) {
           await dependencies.markTargetPublished(target.id, result.publishedUrl, now());
         } else {
           if (result.authExpired) await dependencies.markAccountReconnectRequired(target.accountId);
-          await dependencies.markTargetFailed(target.id, safeError(result));
+          await dependencies.markTargetFailed(target.id, safeError(result, target.platform));
         }
       } catch (error) {
         console.error("Unable to publish target.", { postId: post.id, targetId: target.id, error });
