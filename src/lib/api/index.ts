@@ -3,13 +3,16 @@ export {
   useConnectAccount,
   useDisconnectAccount,
 } from "./accounts";
-export { useCreatePost, usePost, usePosts } from "./posts";
 export {
-  useAdaptPost,
+  useCreatePost,
+  usePost,
+  usePosts,
   usePublishPost,
   useRetryPost,
+  type PostActionInput,
+} from "./posts";
+export {
+  useAdaptPost,
   type AdaptPostInput,
   type AdaptPostResult,
-  type PostActionInput,
-  type PostActionResult,
 } from "./stubs";

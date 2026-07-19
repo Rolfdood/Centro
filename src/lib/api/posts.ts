@@ -18,6 +18,10 @@ export const postQueryKeys = {
   detail: (id: string) => ["posts", id] as const,
 };
 
+export interface PostActionInput {
+  postId: string;
+}
+
 async function fetchPosts(): Promise<PostListItemDto[]> {
   const response = await requestJson(
     "/api/posts",
@@ -62,6 +66,36 @@ async function createPost(input: CreatePostInput): Promise<PostDetailDto> {
   return response.post;
 }
 
+async function publishPost({ postId }: PostActionInput): Promise<PostDetailDto> {
+  const parsed = postIdParamsSchema.safeParse({ id: postId });
+  if (!parsed.success) {
+    throw new Error("The selected post is invalid.");
+  }
+
+  const response = await requestJson(
+    `/api/posts/${parsed.data.id}/publish`,
+    { method: "POST" },
+    postDetailResponseSchema,
+  );
+
+  return response.post;
+}
+
+async function retryPost({ postId }: PostActionInput): Promise<PostDetailDto> {
+  const parsed = postIdParamsSchema.safeParse({ id: postId });
+  if (!parsed.success) {
+    throw new Error("The selected post is invalid.");
+  }
+
+  const response = await requestJson(
+    `/api/posts/${parsed.data.id}/retry`,
+    { method: "POST" },
+    postDetailResponseSchema,
+  );
+
+  return response.post;
+}
+
 export function usePosts() {
   return useQuery({
     queryKey: postQueryKeys.all,
@@ -85,6 +119,30 @@ export function useCreatePost() {
     onSuccess: async (post) => {
       await queryClient.invalidateQueries({ queryKey: postQueryKeys.all });
       queryClient.setQueryData(postQueryKeys.detail(post.id), post);
+    },
+  });
+}
+
+export function usePublishPost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: publishPost,
+    onSuccess: async (post) => {
+      queryClient.setQueryData(postQueryKeys.detail(post.id), post);
+      await queryClient.invalidateQueries({ queryKey: postQueryKeys.all });
+    },
+  });
+}
+
+export function useRetryPost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: retryPost,
+    onSuccess: async (post) => {
+      queryClient.setQueryData(postQueryKeys.detail(post.id), post);
+      await queryClient.invalidateQueries({ queryKey: postQueryKeys.all });
     },
   });
 }

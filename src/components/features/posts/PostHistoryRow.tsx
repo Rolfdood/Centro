@@ -1,4 +1,4 @@
-import { RotateCw } from "lucide-react";
+import { LoaderCircle, RotateCw } from "lucide-react";
 
 import { PlatformDotGroup } from "@/components/features/posts/PlatformDotGroup";
 import { PostExcerpt } from "@/components/features/posts/PostExcerpt";
@@ -13,9 +13,17 @@ interface PostHistoryRowProps {
   post: PostListItemDto;
   dateLabel: string;
   onRetry: (postId: string) => void;
+  isRetrying: boolean;
+  isRetryDisabled: boolean;
 }
 
-export function PostHistoryRow({ post, dateLabel, onRetry }: PostHistoryRowProps) {
+export function PostHistoryRow({
+  post,
+  dateLabel,
+  onRetry,
+  isRetrying,
+  isRetryDisabled,
+}: PostHistoryRowProps) {
   const canRetry = post.status === "FAILED" || post.status === "PARTIALLY_FAILED";
 
   return (
@@ -44,10 +52,16 @@ export function PostHistoryRow({ post, dateLabel, onRetry }: PostHistoryRowProps
             variant="ghost"
             size="xs"
             className="h-auto gap-1 px-0 py-0 text-destructive hover:bg-transparent hover:text-destructive"
+            disabled={isRetryDisabled}
+            aria-label="Retry failed targets for this post"
             onClick={() => onRetry(post.id)}
           >
-            <RotateCw className="size-3" />
-            Retry
+            {isRetrying ? (
+              <LoaderCircle className="size-3 animate-spin" />
+            ) : (
+              <RotateCw className="size-3" />
+            )}
+            {isRetrying ? "Retrying…" : "Retry"}
           </Button>
         ) : null}
         <time
