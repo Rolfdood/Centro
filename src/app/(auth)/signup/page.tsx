@@ -1,21 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { completeSignupFlow } from "@/lib/auth/signup-flow";
 
+import { loginUser } from "../login/actions";
 import { registerUser, type RegisterFieldErrors } from "./actions";
 
 export default function SignupPage() {
@@ -28,116 +22,157 @@ export default function SignupPage() {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setErrors({});
     setServerError("");
     setLoading(true);
 
-    const result = await registerUser({
+    const result = await completeSignupFlow({
       name,
       email,
       password,
       confirmPassword,
+    }, {
+      register: registerUser,
+      login: loginUser,
     });
 
-    setLoading(false);
-
     if (!result.success) {
-      setErrors(result.fieldErrors ?? {});
-      setServerError(result.error ?? "Something went wrong.");
+      setLoading(false);
+      if (result.stage === "registration") {
+        setErrors(result.result.fieldErrors ?? {});
+        setServerError(result.result.error ?? "Unable to create your account.");
+      } else {
+        setServerError("Your account was created. Please sign in to continue.");
+      }
       return;
     }
-
-    router.push("/login");
+    setLoading(false);
+    router.push(result.redirectTo);
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Create your account</CardTitle>
-          <CardDescription>
-            Enter your details to get started with Centro.
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+      <div className="flex w-full max-w-[360px] flex-col gap-8">
+        <header className="flex flex-col items-center gap-1 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">Centro</h1>
+          <p className="text-sm text-muted-foreground">
+            Write once. Publish everywhere.
+          </p>
+        </header>
+
+        <section className="rounded-lg border border-border bg-card p-6">
+          <div className="mb-6">
+            <h2 className="text-lg font-medium">Create your account</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Start managing your social posts from one place.
+            </p>
+          </div>
+
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <FieldError error={errors.name}>
+              <Label className="font-mono text-xs" htmlFor="name">
+                Name
+              </Label>
               <Input
                 id="name"
                 type="text"
                 placeholder="Your name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(event) => setName(event.target.value)}
+                disabled={loading}
+                aria-invalid={Boolean(errors.name)}
                 required
               />
-              {errors.name && (
-                <p className="text-sm text-red-600">{errors.name}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            </FieldError>
+
+            <FieldError error={errors.email}>
+              <Label className="font-mono text-xs" htmlFor="email">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
+                disabled={loading}
+                aria-invalid={Boolean(errors.email)}
                 required
               />
-              {errors.email && (
-                <p className="text-sm text-red-600">{errors.email}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            </FieldError>
+
+            <FieldError error={errors.password}>
+              <Label className="font-mono text-xs" htmlFor="password">
+                Password
+              </Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
+                disabled={loading}
+                aria-invalid={Boolean(errors.password)}
                 required
               />
-              {errors.password && (
-                <p className="text-sm text-red-600">{errors.password}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm password</Label>
+            </FieldError>
+
+            <FieldError error={errors.confirmPassword}>
+              <Label className="font-mono text-xs" htmlFor="confirm-password">
+                Confirm password
+              </Label>
               <Input
-                id="confirmPassword"
+                id="confirm-password"
                 type="password"
                 placeholder="••••••••"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                disabled={loading}
+                aria-invalid={Boolean(errors.confirmPassword)}
                 required
               />
-              {errors.confirmPassword && (
-                <p className="text-sm text-red-600">
-                  {errors.confirmPassword}
-                </p>
-              )}
-            </div>
-            {serverError && (
-              <p className="text-sm text-red-600">{serverError}</p>
-            )}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
+            </FieldError>
+
+            {serverError ? (
+              <p className="font-mono text-sm text-destructive" role="alert">
+                {serverError}
+              </p>
+            ) : null}
+
+            <Button type="submit" className="mt-2 w-full" disabled={loading}>
               {loading ? "Creating account…" : "Sign up"}
             </Button>
-            <p className="text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link href="/login" className="text-primary underline">
-                Sign in
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+          </form>
+        </section>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link className="text-foreground underline underline-offset-4" href="/login">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </main>
+  );
+}
+
+function FieldError({
+  children,
+  error,
+}: {
+  children: ReactNode;
+  error?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      {children}
+      {error ? (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

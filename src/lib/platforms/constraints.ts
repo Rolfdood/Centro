@@ -75,6 +75,40 @@ export const PLATFORM_CONSTRAINTS: Record<Platform, PlatformConstraints> = {
   },
 };
 
+export interface PlatformOnboardingDetails {
+  name: string;
+  description: string;
+  color: string;
+}
+
+export const PLATFORM_ONBOARDING_DETAILS: Record<Platform, PlatformOnboardingDetails> = {
+  X: {
+    name: "X (Twitter)",
+    description: `Text posts, ${PLATFORM_CONSTRAINTS.X.maxChars} chars`,
+    color: "#ffffff",
+  },
+  FACEBOOK: {
+    name: "Facebook",
+    description: "Pages & Groups",
+    color: "#1877f2",
+  },
+  INSTAGRAM: {
+    name: "Instagram",
+    description: "Reels & Carousels",
+    color: "#e1306c",
+  },
+  TIKTOK: {
+    name: "TikTok",
+    description: "Short-form video",
+    color: "#25f4ee",
+  },
+  LINKEDIN: {
+    name: "LinkedIn",
+    description: "Professional network",
+    color: "#0a66c2",
+  },
+};
+
 export function getConstraints(platform: Platform): PlatformConstraints {
   return PLATFORM_CONSTRAINTS[platform];
 }
