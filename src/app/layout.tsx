@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { GeistMono } from "geist/font/mono";
 
 import { SessionProvider } from "@/components/providers/session-provider";
+import { QueryProvider } from "@/components/providers/query-provider";
 
 import "./globals.css";
 
@@ -29,7 +30,9 @@ export default function RootLayout({ children }: Readonly<RootLayoutProps>) {
       className={`${inter.variable} ${GeistMono.variable} dark`}
     >
       <body className="font-sans antialiased">
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <QueryProvider>{children}</QueryProvider>
+        </SessionProvider>
       </body>
     </html>
   );

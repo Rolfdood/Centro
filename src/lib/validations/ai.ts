@@ -1,5 +1,23 @@
 import { z } from "zod";
+
 import { PLATFORMS } from "@/lib/platforms/constraints";
+
+export const COMPOSER_TONES = [
+  "PROFESSIONAL",
+  "CASUAL",
+  "PLAYFUL",
+  "BOLD",
+] as const;
+
+export const adaptPostRequestSchema = z.object({
+  baseText: z.string().trim().min(1),
+  platforms: z.array(z.enum(PLATFORMS)).min(1),
+  tone: z.enum(COMPOSER_TONES),
+  media: z.object({
+    hasImages: z.boolean(),
+    hasVideo: z.boolean(),
+  }),
+});
 
 export const aiToneSchema = z.enum([
   "professional",
@@ -13,20 +31,24 @@ export const aiMediaSchema = z.object({
   hasVideo: z.boolean().default(false),
 });
 
-export const aiAdaptRequestSchema = z.object({
-  baseText: z.string().trim().min(1, "Base text is required"),
-  platforms: z.array(z.enum(PLATFORMS)).min(1, "Select at least one platform"),
-  tone: aiToneSchema.default("professional"),
-  media: aiMediaSchema.default({ hasImages: false, hasVideo: false }),
-}).superRefine((data, context) => {
-  if (new Set(data.platforms).size !== data.platforms.length) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Each platform can only be selected once",
-      path: ["platforms"],
-    });
-  }
-});
+export const aiAdaptRequestSchema = z
+  .object({
+    baseText: z.string().trim().min(1, "Base text is required"),
+    platforms: z
+      .array(z.enum(PLATFORMS))
+      .min(1, "Select at least one platform"),
+    tone: aiToneSchema.default("professional"),
+    media: aiMediaSchema.default({ hasImages: false, hasVideo: false }),
+  })
+  .superRefine((data, context) => {
+    if (new Set(data.platforms).size !== data.platforms.length) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Each platform can only be selected once",
+        path: ["platforms"],
+      });
+    }
+  });
 
 export const aiVariantSchema = z.object({
   platform: z.enum(PLATFORMS),
@@ -40,6 +62,7 @@ export const aiAdaptResponseSchema = z.object({
   model: z.string(),
 });
 
+export type AdaptPostRequest = z.infer<typeof adaptPostRequestSchema>;
 export type AiTone = z.infer<typeof aiToneSchema>;
 export type AiAdaptRequest = z.infer<typeof aiAdaptRequestSchema>;
 export type AiVariant = z.infer<typeof aiVariantSchema>;
