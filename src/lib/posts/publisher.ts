@@ -29,12 +29,13 @@ type PublishablePost = {
 };
 
 export interface PublisherDependencies {
+  claimPost: (postId: string, userId: string) => Promise<PublishablePost | null>;
   findPost: (postId: string, userId: string) => Promise<PublishablePost | null>;
   loadResult: (postId: string, userId: string) => Promise<PostWithRelations | null>;
   updatePostStatus: (postId: string, status: PostStatus) => Promise<void>;
   markTargetPublishing: (targetId: string) => Promise<void>;
   markTargetPublished: (targetId: string, publishedUrl: string, publishedAt: Date) => Promise<void>;
-  markTargetFailed: (targetId: string, error: string, attempts: number) => Promise<void>;
+  markTargetFailed: (targetId: string, error: string) => Promise<void>;
   markAccountReconnectRequired: (accountId: string) => Promise<void>;
   getAdapter?: (platform: Platform) => SocialPlatformAdapter;
   now?: () => Date;
@@ -42,6 +43,7 @@ export interface PublisherDependencies {
 
 export function derivePostStatus(targets: ReadonlyArray<{ status: TargetStatus }>): PostStatus {
   if (targets.some((target) => target.status === "PUBLISHING")) return "PUBLISHING";
+  if (targets.some((target) => target.status === "DRAFT")) return "DRAFT";
   if (targets.length > 0 && targets.every((target) => target.status === "PUBLISHED")) return "PUBLISHED";
   if (targets.length > 0 && targets.every((target) => target.status === "FAILED")) return "FAILED";
   if (targets.some((target) => target.status === "PUBLISHED") && targets.some((target) => target.status === "FAILED")) {
@@ -57,8 +59,8 @@ function safeError(result: Extract<PublishResult, { ok: false }>): string {
 
 export function createPublisher(dependencies: PublisherDependencies) {
   return async function publishPost(postId: string, userId: string): Promise<PostWithRelations | null> {
-    const post = await dependencies.findPost(postId, userId);
-    if (!post) return null;
+    const post = await dependencies.claimPost(postId, userId);
+    if (!post) return dependencies.loadResult(postId, userId);
 
     const pendingTargets = post.targets.filter((target) => target.status === "DRAFT");
     if (pendingTargets.length === 0) {
@@ -78,7 +80,7 @@ export function createPublisher(dependencies: PublisherDependencies) {
         const auth = await adapter.checkAuth(target.account);
         if (!auth.active) {
           await dependencies.markAccountReconnectRequired(target.accountId);
-          await dependencies.markTargetFailed(target.id, `Reconnect your ${target.platform} account to publish this target.`, target.attempts + 1);
+          await dependencies.markTargetFailed(target.id, `Reconnect your ${target.platform} account to publish this target.`);
           continue;
         }
 
@@ -94,11 +96,11 @@ export function createPublisher(dependencies: PublisherDependencies) {
           await dependencies.markTargetPublished(target.id, result.publishedUrl, now());
         } else {
           if (result.authExpired) await dependencies.markAccountReconnectRequired(target.accountId);
-          await dependencies.markTargetFailed(target.id, safeError(result), target.attempts + 1);
+          await dependencies.markTargetFailed(target.id, safeError(result));
         }
       } catch (error) {
-        console.error("Unable to publish target.", error);
-        await dependencies.markTargetFailed(target.id, "Unable to publish this target.", target.attempts + 1);
+        console.error("Unable to publish target.", { postId: post.id, targetId: target.id, error });
+        await dependencies.markTargetFailed(target.id, "Unable to publish this target.");
       }
     }
 
@@ -110,6 +112,17 @@ export function createPublisher(dependencies: PublisherDependencies) {
 }
 
 export const publishPostForUser = createPublisher({
+  claimPost: async (postId, userId) => {
+    const { db } = await import("@/lib/db");
+    return db.$transaction(async (transaction) => {
+      const claim = await transaction.post.updateMany({
+        where: { id: postId, userId, status: "DRAFT" },
+        data: { status: "PUBLISHING" },
+      });
+      if (claim.count === 0) return null;
+      return transaction.post.findFirst({ where: { id: postId, userId }, include: publishInclude });
+    });
+  },
   findPost: async (postId, userId) => {
     const { db } = await import("@/lib/db");
     return db.post.findFirst({ where: { id: postId, userId }, include: publishInclude });

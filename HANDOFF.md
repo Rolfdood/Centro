@@ -39,10 +39,11 @@
 ### Changes
 - Added a server-only publish service that loads a user-owned post with its targets, media, and social accounts before publishing.
 - Publishes only `DRAFT` targets through the platform adapter registry, transitioning each target through `PUBLISHING` to `PUBLISHED` or `FAILED`.
+- Atomically claims the parent post with `DRAFT` to `PUBLISHING` before loading targets, so a concurrent publish request cannot deliver the same target twice.
 - Persists target publish timestamps, URLs, sanitized errors, and attempt counts; previously published targets are idempotent no-ops.
 - Checks account availability before publishing and marks accounts `RECONNECT_REQUIRED` when authentication is no longer active or expires during publishing.
 - Added one shared parent-status derivation function for `PUBLISHED`, `PARTIALLY_FAILED`, and `FAILED` post outcomes.
-- Added publisher smoke coverage for successful publishing, partial failure, all-failure status derivation, and repeated publish no-op behavior.
+- Added publisher smoke coverage for successful and all-failed publishing, inactive accounts, adapter exceptions, attempts, concurrent publish requests, and repeated publish no-op behavior.
 
 ### Files
 - `src/lib/posts/publisher.ts`
@@ -58,7 +59,7 @@
 ## Branch State
 
 ```
-9b3c3dc feature/Centro-009 [Centro-009] - Implement idempotent publish service
+4e04f9b feature/Centro-009 [Centro-009] - Correct Centro-008 handoff status
 3a7a075 origin/develop [Centro-008] - Implement idempotent post APIs
 ```
 
