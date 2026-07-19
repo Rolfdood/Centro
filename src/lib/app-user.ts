@@ -1,9 +1,10 @@
 import { cache } from "react";
+import { redirect } from "next/navigation";
 
 import { getAuthenticatedUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-export const getCurrentAppUser = cache(async () => {
+const getCurrentAppUser = cache(async () => {
   const auth = await getAuthenticatedUser();
   if (!auth.ok) return null;
 
@@ -16,4 +17,11 @@ export const getCurrentAppUser = cache(async () => {
       timezone: true,
     },
   });
+});
+
+export const getRequiredAppUser = cache(async () => {
+  const user = await getCurrentAppUser();
+  if (!user) redirect("/login");
+
+  return user;
 });

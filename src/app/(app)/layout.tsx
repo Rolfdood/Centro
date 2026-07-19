@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { getCurrentAppUser } from "@/lib/app-user";
+import { getRequiredAppUser } from "@/lib/app-user";
 
 import { AppSidebar } from "@/components/features/shell/AppSidebar";
 import { TopNav } from "@/components/features/shell/TopNav";
@@ -11,11 +10,7 @@ interface AppLayoutProps {
 }
 
 export default async function AppLayout({ children }: AppLayoutProps) {
-  const user = await getCurrentAppUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await getRequiredAppUser();
 
   return (
     <div className="min-h-screen bg-background">

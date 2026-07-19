@@ -14,6 +14,7 @@ const PAGE_SIZE = 10;
 
 const FILTERS = [
   { id: "ALL", label: "All" },
+  { id: "DRAFT", label: "Draft" },
   { id: "PUBLISHED", label: "Published" },
   { id: "SCHEDULED", label: "Scheduled" },
   { id: "FAILED", label: "Failed" },
