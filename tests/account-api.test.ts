@@ -66,6 +66,13 @@ async function run(): Promise<void> {
   };
   const accountHandlers = createAccountsRouteHandlers(accountDependencies);
 
+  const unauthenticatedHandlers = createAccountsRouteHandlers({
+    ...accountDependencies,
+    getAuthenticatedUser: async () => ({ ok: false as const }),
+  });
+  assert.equal((await unauthenticatedHandlers.GET()).status, 401);
+  assert.equal((await unauthenticatedHandlers.POST(new Request("http://localhost"))).status, 401);
+
   const createResponse = await accountHandlers.POST(
     new Request("http://localhost/api/accounts", {
       method: "POST",
