@@ -22,10 +22,17 @@ async function run(): Promise<void> {
 
   assert.match(useComposerStore.getState().idempotencyKey, /^[0-9a-f-]{36}$/i);
   assert.notEqual(useComposerStore.getState().idempotencyKey, initialKey);
+  const draftKey = useComposerStore.getState().idempotencyKey;
 
   useComposerStore.getState().setBaseText("Centro is ready to publish.");
   useComposerStore.getState().selectAccount(xAccount);
   useComposerStore.getState().selectAccount(linkedInAccount);
+
+  assert.equal(
+    useComposerStore.getState().idempotencyKey,
+    draftKey,
+    "editing a draft must preserve the idempotency key used for publish retries",
+  );
 
   assert.deepEqual(useComposerStore.getState().selectedAccountIds, [
     xAccount.id,
@@ -94,6 +101,11 @@ async function run(): Promise<void> {
     linkedInAccount.id,
   ]);
   assert.equal(useComposerStore.getState().variants[xAccount.id], undefined);
+  assert.equal(
+    useComposerStore.getState().idempotencyKey,
+    draftKey,
+    "the idempotency key must remain reusable until a new draft begins",
+  );
 
   console.log("Composer store tests passed.");
 }

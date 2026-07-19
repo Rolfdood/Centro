@@ -2,13 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, FileText, Plus, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  LoaderCircle,
+  Plus,
+  RotateCw,
+  X,
+} from "lucide-react";
 
 import { PostHistoryRow } from "@/components/features/posts/PostHistoryRow";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { usePosts, useRetryPost } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { PostListItemDto } from "@/types";
+import type { PostDetailDto, PostListItemDto } from "@/types";
 
 const PAGE_SIZE = 10;
 
@@ -28,6 +36,22 @@ function matchesFilter(post: PostListItemDto, filter: PostFilter): boolean {
     return post.status === "FAILED" || post.status === "PARTIALLY_FAILED";
   }
   return post.status === filter;
+}
+
+function canRetryPost(post: Pick<PostListItemDto, "status">): boolean {
+  return post.status === "FAILED" || post.status === "PARTIALLY_FAILED";
+}
+
+function retryStatusMessage(post: PostDetailDto): string {
+  if (post.status === "PUBLISHED") {
+    return "Post published successfully.";
+  }
+
+  if (post.status === "PARTIALLY_FAILED") {
+    return "Some targets still failed. You can retry them again.";
+  }
+
+  return "The failed targets were retried but could not be published.";
 }
 
 function getPostDate(post: PostListItemDto): string {
@@ -108,6 +132,8 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
   const [activeFilter, setActiveFilter] = useState<PostFilter>("ALL");
   const [page, setPage] = useState(1);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
+  const [retryingPostId, setRetryingPostId] = useState<string | null>(null);
+  const [isRetryingAll, setIsRetryingAll] = useState(false);
 
   const filteredPosts = useMemo(
     () => posts.filter((post) => matchesFilter(post, activeFilter)),
@@ -119,6 +145,11 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE,
   );
+  const retryablePosts = useMemo(
+    () => posts.filter(canRetryPost),
+    [posts],
+  );
+  const isRetrying = retryingPostId !== null || isRetryingAll;
 
   useEffect(() => {
     if (!retryMessage) return;
@@ -133,17 +164,54 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
   }
 
   async function handleRetry(postId: string) {
-    if (retryPost.isPending) {
+    if (isRetrying) {
       return;
     }
 
     setRetryMessage(null);
+    setRetryingPostId(postId);
 
     try {
-      await retryPost.mutateAsync({ postId });
-      setRetryMessage("Failed targets were retried.");
+      const post = await retryPost.mutateAsync({ postId });
+      setRetryMessage(retryStatusMessage(post));
     } catch {
       setRetryMessage("We couldn’t retry the failed targets. Please try again.");
+    } finally {
+      setRetryingPostId(null);
+    }
+  }
+
+  async function handleRetryAll() {
+    if (isRetrying || retryablePosts.length === 0) {
+      return;
+    }
+
+    setRetryMessage(null);
+    setIsRetryingAll(true);
+
+    try {
+      const results = await Promise.allSettled(
+        retryablePosts.map((post) => retryPost.mutateAsync({ postId: post.id })),
+      );
+      const retriedPosts = results.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : [],
+      );
+      const stillFailingCount = retriedPosts.filter(
+        (post) => post.status !== "PUBLISHED",
+      ).length;
+      const failedRequestCount = results.length - retriedPosts.length;
+
+      if (retriedPosts.length === 0) {
+        setRetryMessage("We couldn’t retry the failed posts. Please try again.");
+      } else if (stillFailingCount === 0 && failedRequestCount === 0) {
+        setRetryMessage("All failed posts were published successfully.");
+      } else {
+        setRetryMessage(
+          `Retry finished: ${retriedPosts.length} post${retriedPosts.length === 1 ? "" : "s"} retried; ${stillFailingCount} still need${stillFailingCount === 1 ? "s" : ""} attention${failedRequestCount > 0 ? `; ${failedRequestCount} could not be retried` : ""}.`,
+        );
+      }
+    } finally {
+      setIsRetryingAll(false);
     }
   }
 
@@ -188,13 +256,32 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
           })}
         </div>
 
-        <Link
-          href="/compose"
-          className={cn(buttonVariants({ size: "sm" }), "gap-2 self-start sm:self-auto")}
-        >
-          <Plus className="size-4" />
-          Compose
-        </Link>
+        <div className="flex gap-2 self-start sm:self-auto">
+          {retryablePosts.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={isRetrying}
+              onClick={handleRetryAll}
+            >
+              {isRetryingAll ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <RotateCw className="size-4" />
+              )}
+              {isRetryingAll ? "Retrying all…" : "Retry all failed"}
+            </Button>
+          ) : null}
+          <Link
+            href="/compose"
+            className={cn(buttonVariants({ size: "sm" }), "gap-2")}
+          >
+            <Plus className="size-4" />
+            Compose
+          </Link>
+        </div>
       </div>
 
       {retryMessage ? (
@@ -233,7 +320,8 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
                   post={post}
                   dateLabel={formatPostDate(getPostDate(post), timezone)}
                   onRetry={handleRetry}
-                  isRetrying={retryPost.isPending}
+                  isRetrying={retryingPostId === post.id}
+                  isRetryDisabled={isRetrying}
                 />
               ))}
             </div>

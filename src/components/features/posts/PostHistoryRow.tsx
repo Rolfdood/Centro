@@ -14,6 +14,7 @@ interface PostHistoryRowProps {
   dateLabel: string;
   onRetry: (postId: string) => void;
   isRetrying: boolean;
+  isRetryDisabled: boolean;
 }
 
 export function PostHistoryRow({
@@ -21,6 +22,7 @@ export function PostHistoryRow({
   dateLabel,
   onRetry,
   isRetrying,
+  isRetryDisabled,
 }: PostHistoryRowProps) {
   const canRetry = post.status === "FAILED" || post.status === "PARTIALLY_FAILED";
 
@@ -50,8 +52,8 @@ export function PostHistoryRow({
             variant="ghost"
             size="xs"
             className="h-auto gap-1 px-0 py-0 text-destructive hover:bg-transparent hover:text-destructive"
-            disabled={isRetrying}
-            aria-label="Retry all failed targets"
+            disabled={isRetryDisabled}
+            aria-label="Retry failed targets for this post"
             onClick={() => onRetry(post.id)}
           >
             {isRetrying ? (
