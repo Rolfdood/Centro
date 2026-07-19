@@ -74,6 +74,20 @@ async function run(): Promise<void> {
   };
   const handlers = createPostsRouteHandlers(dependencies);
 
+  const unauthenticatedHandlers = createPostsRouteHandlers({
+    ...dependencies,
+    getAuthenticatedUser: async () => ({ ok: false as const }),
+  });
+  assert.equal((await unauthenticatedHandlers.GET()).status, 401);
+  assert.equal((await unauthenticatedHandlers.POST(request())).status, 401);
+
+  const malformed = await handlers.POST(new Request("http://localhost/api/posts", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ idempotencyKey: key, baseText: "", targets: [] }),
+  }));
+  assert.equal(malformed.status, 400);
+
   const created = await handlers.POST(request());
   assert.equal(created.status, 201);
   assert.equal((await created.json()).post.id, "post-1");

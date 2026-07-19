@@ -35,13 +35,19 @@ the application and database infrastructure for the one-week demo slice.
    The default `DATABASE_URL` in `.env.example` matches the Docker Compose service.
    Update it only if you use your own PostgreSQL instance. Never commit `.env`.
 
-4. Apply database migrations:
+4. Generate Prisma Client:
+
+   ```bash
+   pnpm prisma generate
+   ```
+
+5. Apply database migrations:
 
    ```bash
    pnpm prisma migrate dev
    ```
 
-5. Seed the development user:
+6. Seed the development user:
 
    ```bash
    pnpm prisma db seed
@@ -51,7 +57,7 @@ the application and database infrastructure for the one-week demo slice.
    - **Email:** `dev@centro.local`
    - **Password:** `password123`
 
-6. Start the development server:
+7. Start the development server:
 
    ```bash
    pnpm dev
@@ -97,6 +103,7 @@ when demonstrating a recovery after a simulated failure.
 Run these individually to confirm the health of the codebase:
 
 ```bash
+pnpm test
 pnpm lint
 pnpm typecheck
 pnpm build

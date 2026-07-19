@@ -13,7 +13,9 @@
 | `feature/Centro-007` | Merged to `develop` |
 | `feature/Centro-008` | Merged to `develop` |
 | `feature/Centro-009` | Merged to `develop` |
-| `feature/Centro-010` | In progress |
+| `feature/Centro-010` | Merged to `develop` |
+| `feature/Centro-011` | Merged to `develop` |
+| `feature/Centro-012` | In progress — backend/configuration verification |
 
 ---
 
@@ -78,11 +80,39 @@
 
 ---
 
+## Centro-011 - AI Adaptation and Retry-Failed APIs
+
+### Changes
+- Added the server-only `AIProvider` boundary with an OpenAI implementation and deterministic fallback when no API key is configured.
+- Added authenticated `POST /api/ai/adapt`, platform-aware prompts sourced from `constraints.ts`, Zod validation, and per-variant validation feedback.
+- Added authenticated `POST /api/posts/[id]/retry`, atomically claiming only failed targets so successful delivery is never repeated.
+- Added AI and retry route/service smoke coverage, including concurrent retry claim coverage and partial media defaults.
+- Documented deterministic mock-failure recovery: reset `MOCK_FAILURE_RATE` to `0` and restart before demonstrating a successful retry.
+
+### Verification
+- Full smoke suite, typecheck, lint, and production build passed before merge.
+
+---
+
+## Centro-012 - Day 5 Backend Readiness
+
+### Completed now
+- Added explicit unauthorized and malformed-request coverage to the account and post API smoke suites.
+- Verified the isolated setup sequence requires `pnpm prisma generate` before running tests; README now documents that step and includes `pnpm test` in verification.
+- Verified the backend smoke suite on the merged Centro-011 baseline.
+
+### Waiting for Developer B
+- The full browser acceptance journey cannot run until the Accounts, Composer, and Dashboard implementations merge into `develop`.
+- After that merge, jointly verify: sign-in; X, LinkedIn, and Instagram mock connection; AI adaptation and manual edit; publish; forced failure; retry after resetting `MOCK_FAILURE_RATE`; and dashboard refresh with persisted statuses.
+- Log and fix only high-severity backend blockers discovered during that joint run; UI-only issues remain with Developer B.
+- Docker Compose validation also remains to be run on a machine with Docker installed; the current environment does not provide the `docker` CLI.
+
+---
+
 ## Branch State
 
 ```
-2100e04 feature/Centro-010 [Centro-010] - Add publish-now API route
-08a51ca origin/develop [Centro-009] - Implement idempotent publish service and target status handling
+2cdd31f origin/develop [Centro-023] - Add auth onboarding flow
 ```
 
 ---
@@ -93,6 +123,7 @@
 # Setup
 pnpm install
 docker compose up -d
+pnpm prisma generate
 pnpm prisma migrate dev
 pnpm prisma db seed
 
@@ -100,6 +131,7 @@ pnpm prisma db seed
 pnpm dev
 
 # Verification
+pnpm test
 pnpm typecheck
 pnpm lint
 pnpm build
@@ -120,5 +152,5 @@ pnpm prisma studio
 
 ## Next Steps
 
-1. Review Centro-010 after reviewing its Centro-009 dependency.
-2. Open pull requests only after both stacked branches are approved.
+1. Merge Developer B's Accounts, Composer, and Dashboard work into `develop`.
+2. Run the shared Day 5 browser acceptance journey and address any high-severity backend blocker.

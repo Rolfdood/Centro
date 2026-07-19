@@ -66,6 +66,13 @@ async function run(): Promise<void> {
   };
   const accountHandlers = createAccountsRouteHandlers(accountDependencies);
 
+  const unauthenticatedHandlers = createAccountsRouteHandlers({
+    ...accountDependencies,
+    getAuthenticatedUser: async () => ({ ok: false as const }),
+  });
+  assert.equal((await unauthenticatedHandlers.GET()).status, 401);
+  assert.equal((await unauthenticatedHandlers.POST(new Request("http://localhost"))).status, 401);
+
   const createResponse = await accountHandlers.POST(
     new Request("http://localhost/api/accounts", {
       method: "POST",
@@ -125,6 +132,19 @@ async function run(): Promise<void> {
     } as unknown as AccountRouteDependencies["socialAccounts"],
   };
   const disconnectHandlers = createAccountRouteHandlers(disconnectDependencies);
+
+  const unauthenticatedDisconnectHandlers = createAccountRouteHandlers({
+    ...disconnectDependencies,
+    getAuthenticatedUser: async () => ({ ok: false as const }),
+  });
+  assert.equal(
+    (
+      await unauthenticatedDisconnectHandlers.DELETE(new Request("http://localhost"), {
+        params: { id: removableAccountId },
+      })
+    ).status,
+    401,
+  );
 
   const missingResponse = await disconnectHandlers.DELETE(new Request("http://localhost"), {
     params: { id: missingAccountId },
