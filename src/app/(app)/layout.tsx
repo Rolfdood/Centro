@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { getAuthenticatedUser } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getCurrentAppUser } from "@/lib/app-user";
 
 import { AppSidebar } from "@/components/features/shell/AppSidebar";
 import { TopNav } from "@/components/features/shell/TopNav";
@@ -12,20 +11,7 @@ interface AppLayoutProps {
 }
 
 export default async function AppLayout({ children }: AppLayoutProps) {
-  const auth = await getAuthenticatedUser();
-  if (!auth.ok) {
-    redirect("/login");
-  }
-
-  const user = await db.user.findUnique({
-    where: { id: auth.userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      timezone: true,
-    },
-  });
+  const user = await getCurrentAppUser();
 
   if (!user) {
     redirect("/login");

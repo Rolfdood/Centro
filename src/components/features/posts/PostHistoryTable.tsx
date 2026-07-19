@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, FileText, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Plus, X } from "lucide-react";
 
-import { PostTargetRow } from "@/components/features/posts/PostTargetRow";
+import { PostHistoryRow } from "@/components/features/posts/PostTargetRow";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { usePosts } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -109,15 +109,23 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
     [activeFilter, posts],
   );
   const pageCount = Math.max(1, Math.ceil(filteredPosts.length / PAGE_SIZE));
-  const pagePosts = filteredPosts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const currentPage = Math.min(page, pageCount);
+  const pagePosts = filteredPosts.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   useEffect(() => {
+    if (!retryMessage) return;
+
+    const timeout = window.setTimeout(() => setRetryMessage(null), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [retryMessage]);
+
+  function handleFilterChange(filter: PostFilter) {
+    setActiveFilter(filter);
     setPage(1);
-  }, [activeFilter]);
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
+  }
 
   function handleRetry(_postId: string) {
     setRetryMessage("Retry is not available yet. Please try again later.");
@@ -155,7 +163,7 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
                     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                   filter.id === "FAILED" && !isActive ? "hover:text-destructive" : "",
                 )}
-                onClick={() => setActiveFilter(filter.id)}
+                onClick={() => handleFilterChange(filter.id)}
               >
                 {filter.label}
                 <span className="ml-1 font-mono text-xs text-muted-foreground">{count}</span>
@@ -174,9 +182,22 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
       </div>
 
       {retryMessage ? (
-        <p className="mb-4 rounded-md border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-sm text-amber-200" role="status">
-          {retryMessage}
-        </p>
+        <div
+          className="mb-4 flex items-center justify-between gap-3 rounded-md border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-sm text-amber-200"
+          role="status"
+        >
+          <p>{retryMessage}</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="shrink-0 text-amber-200 hover:bg-amber-400/10 hover:text-amber-100"
+            aria-label="Dismiss retry notice"
+            onClick={() => setRetryMessage(null)}
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
       ) : null}
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -191,7 +212,7 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
             </div>
             <div className="divide-y divide-border">
               {pagePosts.map((post) => (
-                <PostTargetRow
+                <PostHistoryRow
                   key={post.id}
                   post={post}
                   dateLabel={formatPostDate(getPostDate(post), timezone)}
@@ -212,19 +233,19 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
             variant="ghost"
             size="icon-sm"
             aria-label="Previous page"
-            disabled={page === 1}
-            onClick={() => setPage((current) => current - 1)}
+            disabled={currentPage === 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
           >
             <ChevronLeft />
           </Button>
-          <span className="font-mono text-xs text-muted-foreground">{page} / {pageCount}</span>
+          <span className="font-mono text-xs text-muted-foreground">{currentPage} / {pageCount}</span>
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
             aria-label="Next page"
-            disabled={page === pageCount}
-            onClick={() => setPage((current) => current + 1)}
+            disabled={currentPage === pageCount}
+            onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
           >
             <ChevronRight />
           </Button>

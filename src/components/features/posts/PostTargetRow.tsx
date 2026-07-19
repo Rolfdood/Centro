@@ -9,13 +9,13 @@ import {
 import { Button } from "@/components/ui/button";
 import type { PostListItemDto } from "@/types";
 
-interface PostTargetRowProps {
+interface PostHistoryRowProps {
   post: PostListItemDto;
   dateLabel: string;
   onRetry: (postId: string) => void;
 }
 
-export function PostTargetRow({ post, dateLabel, onRetry }: PostTargetRowProps) {
+export function PostHistoryRow({ post, dateLabel, onRetry }: PostHistoryRowProps) {
   const canRetry = post.status === "FAILED" || post.status === "PARTIALLY_FAILED";
 
   return (
@@ -60,3 +60,6 @@ export function PostTargetRow({ post, dateLabel, onRetry }: PostTargetRowProps) 
     </article>
   );
 }
+
+// Retained for the component contract defined in SPEC.md.
+export { PostHistoryRow as PostTargetRow };
