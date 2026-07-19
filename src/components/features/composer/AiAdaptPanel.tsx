@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { LoaderCircle, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAdaptPost } from "@/lib/api";
+import { requiresAiRegenerationConfirmation } from "@/stores/composerStore";
 import type {
   ComposerMedia,
   ComposerTone,
@@ -46,6 +47,7 @@ export function AiAdaptPanel({
   children,
 }: AiAdaptPanelProps) {
   const adaptPost = useAdaptPost();
+  const adaptingRef = useRef(false);
   const [pendingRegeneration, setPendingRegeneration] =
     useState<ComposerVariant | null>(null);
   const [generatingAccountIds, setGeneratingAccountIds] = useState<
@@ -53,13 +55,21 @@ export function AiAdaptPanel({
   >(new Set());
   const [hasAdaptationError, setHasAdaptationError] = useState(false);
   const canAdapt =
-    baseText.trim().length > 0 && variants.length > 0 && !adaptPost.isPending;
+    baseText.trim().length > 0 &&
+    variants.length > 0 &&
+    !adaptPost.isPending &&
+    !adaptingRef.current;
 
   async function adaptVariants(variantsToAdapt: ComposerVariant[]) {
-    if (!baseText.trim() || variantsToAdapt.length === 0) {
+    if (
+      !baseText.trim() ||
+      variantsToAdapt.length === 0 ||
+      adaptingRef.current
+    ) {
       return;
     }
 
+    adaptingRef.current = true;
     setHasAdaptationError(false);
     setGeneratingAccountIds(
       new Set(variantsToAdapt.map((variant) => variant.accountId)),
@@ -78,28 +88,39 @@ export function AiAdaptPanel({
         },
       });
 
-      for (const variant of variantsToAdapt) {
-        const generatedVariant = result.variants.find(
-          (candidate) => candidate.platform === variant.platform,
-        );
+      const generatedByPlatform = new Map(
+        result.variants.map((variant) => [variant.platform, variant]),
+      );
+      const hasCompleteResponse = variantsToAdapt.every((variant) =>
+        generatedByPlatform.has(variant.platform),
+      );
 
-        if (generatedVariant) {
-          onGenerated(variant.accountId, generatedVariant.adaptedText);
+      if (!hasCompleteResponse) {
+        throw new Error("Incomplete AI adaptation response");
+      }
+
+      for (const variant of variantsToAdapt) {
+        const generatedVariant = generatedByPlatform.get(variant.platform);
+        if (!generatedVariant) {
+          continue;
         }
+
+        onGenerated(variant.accountId, generatedVariant.adaptedText);
       }
     } catch {
       setHasAdaptationError(true);
     } finally {
+      adaptingRef.current = false;
       setGeneratingAccountIds(new Set());
     }
   }
 
   function requestRegeneration(variant: ComposerVariant) {
-    if (adaptPost.isPending) {
+    if (adaptPost.isPending || adaptingRef.current) {
       return;
     }
 
-    if (variant.isManuallyEdited) {
+    if (requiresAiRegenerationConfirmation(variant)) {
       setPendingRegeneration(variant);
       return;
     }
