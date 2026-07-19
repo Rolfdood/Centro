@@ -31,7 +31,7 @@ export function PublishFooter({
           {hasSelectedPlatforms && !isValid ? (
             <div className="mt-0.5 flex items-center gap-2 text-xs text-destructive">
               <p>
-              Fix the highlighted platform variants to continue.
+                Fix the highlighted platform variants to continue.
               </p>
               <button
                 type="button"
@@ -44,49 +44,35 @@ export function PublishFooter({
           ) : null}
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
-          <span
+          <Button
+            type="button"
+            variant="outline"
             className="flex-1 sm:flex-none"
-            onClick={() => {
-              if (!canPublish && hasSelectedPlatforms) {
-                onInvalidAttempt();
-              }
-            }}
+            disabled={!canPublish}
+            title={
+              canPublish
+                ? "Scheduling is coming soon"
+                : "Fix validation errors before scheduling"
+            }
           >
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto"
-              disabled={!canPublish}
-              title={canPublish ? "Scheduling is coming soon" : "Fix validation errors before scheduling"}
-            >
-              <CalendarClock className="mr-2" />
-              Schedule
-            </Button>
-          </span>
-          <span
+            <CalendarClock className="mr-2" />
+            Schedule
+          </Button>
+          <Button
+            type="button"
             className="flex-1 sm:flex-none"
-            onClick={() => {
-              if (!canPublish && hasSelectedPlatforms) {
-                onInvalidAttempt();
-              }
-            }}
+            disabled={!canPublish}
+            title={
+              canPublish
+                ? "Publishing will be enabled in the next composer step"
+                : hasSelectedPlatforms
+                  ? "Fix validation errors before publishing"
+                  : "Select at least one platform first"
+            }
           >
-            <Button
-              type="button"
-              className="w-full sm:w-auto"
-              disabled={!canPublish}
-              title={
-                canPublish
-                  ? "Publishing will be enabled in the next composer step"
-                  : hasSelectedPlatforms
-                    ? "Fix validation errors before publishing"
-                    : "Select at least one platform first"
-              }
-            >
-              <Send className="mr-2" />
-              Publish now
-            </Button>
-          </span>
+            <Send className="mr-2" />
+            Publish now
+          </Button>
         </div>
       </div>
     </footer>

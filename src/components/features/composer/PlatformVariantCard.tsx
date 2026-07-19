@@ -8,6 +8,7 @@ import {
   getConstraints,
   getMediaRequirementMessage,
   hasRequiredMedia,
+  PLATFORM_ONBOARDING_DETAILS,
 } from "@/lib/platforms/constraints";
 import { cn } from "@/lib/utils";
 import type { ComposerMedia, ComposerVariant } from "@/stores/composerStore";
@@ -48,7 +49,7 @@ export function PlatformVariantCard({
               id={`variant-heading-${variant.accountId}`}
               className="text-sm font-medium text-foreground"
             >
-              {variant.platform === "X" ? "X (Twitter)" : variant.platform}
+              {PLATFORM_ONBOARDING_DETAILS[variant.platform].name}
             </h2>
             <p className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
               Platform variant
@@ -116,7 +117,6 @@ export function PlatformVariantCard({
         <ul
           id={`variant-errors-${variant.accountId}`}
           className="mt-3 space-y-1 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          aria-live="polite"
         >
           {errors.map((error) => (
             <li key={error}>{error}</li>

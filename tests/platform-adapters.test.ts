@@ -56,7 +56,7 @@ async function run(): Promise<void> {
     );
     assert.deepEqual(instagramResult, {
       ok: false,
-      error: "INSTAGRAM requires an image",
+      error: "Instagram requires an image",
       retryable: false,
     });
 

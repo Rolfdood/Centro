@@ -85,7 +85,7 @@ export const PLATFORM_ONBOARDING_DETAILS: Record<Platform, PlatformOnboardingDet
   X: {
     name: "X (Twitter)",
     description: `Text posts, ${PLATFORM_CONSTRAINTS.X.maxChars} chars`,
-    color: "#1da1f2",
+    color: "#FFFFFF",
   },
   FACEBOOK: {
     name: "Facebook",
@@ -115,13 +115,14 @@ export function getConstraints(platform: Platform): PlatformConstraints {
 
 export function getMediaRequirementMessage(platform: Platform): string | null {
   const constraints = getConstraints(platform);
+  const platformName = PLATFORM_ONBOARDING_DETAILS[platform].name;
 
   if (constraints.requiresImage) {
-    return `${platform} requires an image`;
+    return `${platformName} requires an image`;
   }
 
   if (constraints.requiresVideo) {
-    return `${platform} requires a video`;
+    return `${platformName} requires a video`;
   }
 
   return null;
