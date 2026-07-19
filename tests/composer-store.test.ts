@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 
+import { validatePost } from "../src/lib/platforms/constraints";
+
 const xAccount = { id: "account-x", platform: "X" as const };
 const linkedInAccount = { id: "account-linkedin", platform: "LINKEDIN" as const };
 
@@ -61,6 +63,19 @@ async function run(): Promise<void> {
     linkedInAccount.id,
   ]);
   assert.equal(useComposerStore.getState().variants[xAccount.id], undefined);
+
+  const xOverLimit = validatePost("X", "x".repeat(281));
+  assert.equal(xOverLimit.valid, false);
+  assert.deepEqual(xOverLimit.errors, ["Over 280 character limit by 1"]);
+
+  const instagramWithoutImage = validatePost("INSTAGRAM", "A photo update");
+  assert.equal(instagramWithoutImage.valid, false);
+  assert.deepEqual(instagramWithoutImage.errors, ["INSTAGRAM requires an image"]);
+
+  const instagramWithImage = validatePost("INSTAGRAM", "A photo update", [
+    { type: "IMAGE", mimeType: "image/jpeg", sizeBytes: 1024 },
+  ]);
+  assert.equal(instagramWithImage.valid, true);
 
   console.log("Composer store tests passed.");
 }

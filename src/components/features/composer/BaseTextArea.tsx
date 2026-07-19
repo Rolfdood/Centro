@@ -1,9 +1,5 @@
 "use client";
 
-import { ImagePlus, SmilePlus, Tags } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-
 interface BaseTextAreaProps {
   value: string;
   onChange: (value: string) => void;
@@ -35,38 +31,6 @@ export function BaseTextArea({ value, onChange }: BaseTextAreaProps) {
         aria-label="Post draft"
       />
 
-      <div className="mt-4 flex items-center gap-1 border-t border-border pt-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          disabled
-          title="Media uploads are coming soon"
-          aria-label="Add media (coming soon)"
-        >
-          <ImagePlus />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          disabled
-          title="Emoji suggestions are coming soon"
-          aria-label="Add emoji (coming soon)"
-        >
-          <SmilePlus />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          disabled
-          title="Hashtag suggestions are coming soon"
-          aria-label="Add hashtag (coming soon)"
-        >
-          <Tags />
-        </Button>
-      </div>
     </section>
   );
 }

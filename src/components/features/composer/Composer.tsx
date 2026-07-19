@@ -1,11 +1,15 @@
 "use client";
 
 import { useAccounts } from "@/lib/api";
+import { validatePost } from "@/lib/platforms/constraints";
 import { useComposerStore } from "@/stores/composerStore";
 
 import { BaseTextArea } from "./BaseTextArea";
+import { MediaUploader } from "./MediaUploader";
 import { PlatformSelector } from "./PlatformSelector";
+import { PlatformVariantCard } from "./PlatformVariantCard";
 import { PublishFooter } from "./PublishFooter";
+import { ToneSelector } from "./ToneSelector";
 
 export function Composer() {
   const { data: accounts = [], isLoading, isError } = useAccounts();
@@ -14,8 +18,27 @@ export function Composer() {
     (state) => state.selectedAccountIds,
   );
   const setBaseText = useComposerStore((state) => state.setBaseText);
+  const variants = useComposerStore((state) => state.variants);
+  const media = useComposerStore((state) => state.media);
+  const tone = useComposerStore((state) => state.tone);
   const selectAccount = useComposerStore((state) => state.selectAccount);
   const deselectAccount = useComposerStore((state) => state.deselectAccount);
+  const setVariantText = useComposerStore((state) => state.setVariantText);
+  const setMedia = useComposerStore((state) => state.setMedia);
+  const setTone = useComposerStore((state) => state.setTone);
+  const selectedVariants = selectedAccountIds.flatMap((accountId) => {
+    const variant = variants[accountId];
+    return variant ? [variant] : [];
+  });
+  const validations = new Map(
+    selectedVariants.map((variant) => [
+      variant.accountId,
+      validatePost(variant.platform, variant.adaptedText, media),
+    ]),
+  );
+  const variantsAreValid = selectedVariants.every(
+    (variant) => validations.get(variant.accountId)?.valid,
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col pb-4">
@@ -53,9 +76,41 @@ export function Composer() {
         )}
 
         <BaseTextArea value={baseText} onChange={setBaseText} />
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Platform variations
+          </h2>
+          <ToneSelector value={tone} onChange={setTone} />
+        </div>
+
+        <MediaUploader media={media} onChange={setMedia} />
+
+        {selectedVariants.length > 0 ? (
+          <section className="space-y-4" aria-label="Platform variations">
+            {selectedVariants.map((variant) => (
+              <PlatformVariantCard
+                key={variant.accountId}
+                variant={variant}
+                media={media}
+                errors={validations.get(variant.accountId)?.errors ?? []}
+                onChange={(adaptedText) =>
+                  setVariantText(variant.accountId, adaptedText)
+                }
+              />
+            ))}
+          </section>
+        ) : (
+          <section className="rounded-lg border border-dashed border-border bg-card/50 p-5 text-sm text-muted-foreground">
+            Select a connected platform to create a tailored post variation.
+          </section>
+        )}
       </div>
 
-      <PublishFooter selectedCount={selectedAccountIds.length} />
+      <PublishFooter
+        selectedCount={selectedAccountIds.length}
+        isValid={variantsAreValid}
+      />
     </div>
   );
 }
