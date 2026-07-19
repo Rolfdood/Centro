@@ -68,6 +68,28 @@ The app uses **Auth.js / NextAuth v5** with credentials-based authentication:
 - Passwords are hashed with **argon2**
 - Failed login attempts are throttled (>5 failures in 15 min blocks the account)
 
+## AI adaptation and mock publishing
+
+The adaptation endpoint uses `OPENAI_API_KEY` and `AI_MODEL` when an API key is
+configured. Without a key, Centro returns deterministic mock variants so the
+demo remains runnable offline. AI-generated text is always returned for review;
+it is never published automatically.
+
+Mock platform publishing is enabled by default with `MOCK_PLATFORMS="true"`.
+Set `MOCK_FAILURE_RATE` to a value between `0` and `1` before starting the app
+to exercise failed-target status and retry behavior. A retry only republishes
+targets whose persisted status is `FAILED`; previously published targets remain
+untouched.
+
+## Demo journey
+
+1. Start the database, apply migrations, seed the app, and run `pnpm dev`.
+2. Sign in with `dev@centro.local` / `password123`.
+3. Connect mock X, LinkedIn, and Instagram accounts.
+4. Draft a post, request AI adaptations, review one variant, and publish.
+5. Restart with a non-zero `MOCK_FAILURE_RATE` to demonstrate a failed target,
+   then retry it from the post detail view.
+
 ## Verification commands
 
 Run these individually to confirm the health of the codebase:
