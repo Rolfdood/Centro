@@ -113,6 +113,37 @@ export function getConstraints(platform: Platform): PlatformConstraints {
   return PLATFORM_CONSTRAINTS[platform];
 }
 
+export function getMediaRequirementMessage(platform: Platform): string | null {
+  const constraints = getConstraints(platform);
+
+  if (constraints.requiresImage) {
+    return `${platform} requires an image`;
+  }
+
+  if (constraints.requiresVideo) {
+    return `${platform} requires a video`;
+  }
+
+  return null;
+}
+
+export function hasRequiredMedia(
+  platform: Platform,
+  media: MediaValidationInput[],
+): boolean {
+  const constraints = getConstraints(platform);
+
+  if (constraints.requiresImage) {
+    return media.some((item) => item.type === "IMAGE");
+  }
+
+  if (constraints.requiresVideo) {
+    return media.some((item) => item.type === "VIDEO");
+  }
+
+  return true;
+}
+
 export function validateTextLength(
   platform: Platform,
   text: string,
@@ -135,15 +166,11 @@ export function validateMedia(
   const constraints = getConstraints(platform);
   const errors: string[] = [];
 
-  const images = media.filter((m) => m.type === "IMAGE");
-  const videos = media.filter((m) => m.type === "VIDEO");
+  const images = media.filter((item) => item.type === "IMAGE");
+  const requirementMessage = getMediaRequirementMessage(platform);
 
-  if (constraints.requiresImage && images.length === 0) {
-    errors.push(`${platform} requires an image`);
-  }
-
-  if (constraints.requiresVideo && videos.length === 0) {
-    errors.push(`${platform} requires a video`);
+  if (requirementMessage && !hasRequiredMedia(platform, media)) {
+    errors.push(requirementMessage);
   }
 
   if (images.length > constraints.maxImages) {
@@ -194,18 +221,8 @@ export function validatePost(
     errors.push(textResult.error);
   }
 
-  if (media && media.length > 0) {
-    const mediaResult = validateMedia(platform, media);
-    errors.push(...mediaResult.errors);
-  } else {
-    const constraints = getConstraints(platform);
-    if (constraints.requiresImage) {
-      errors.push(`${platform} requires an image`);
-    }
-    if (constraints.requiresVideo) {
-      errors.push(`${platform} requires a video`);
-    }
-  }
+  const mediaResult = validateMedia(platform, media ?? []);
+  errors.push(...mediaResult.errors);
 
   return {
     valid: errors.length === 0,

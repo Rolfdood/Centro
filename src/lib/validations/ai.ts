@@ -3,28 +3,23 @@ import { z } from "zod";
 import { PLATFORMS } from "@/lib/platforms/constraints";
 
 export const COMPOSER_TONES = [
-  "PROFESSIONAL",
-  "CASUAL",
-  "PLAYFUL",
-  "BOLD",
+  "professional",
+  "casual",
+  "playful",
+  "bold",
 ] as const;
+
+export const aiToneSchema = z.enum(COMPOSER_TONES);
 
 export const adaptPostRequestSchema = z.object({
   baseText: z.string().trim().min(1),
   platforms: z.array(z.enum(PLATFORMS)).min(1),
-  tone: z.enum(COMPOSER_TONES),
+  tone: aiToneSchema,
   media: z.object({
     hasImages: z.boolean(),
     hasVideo: z.boolean(),
   }),
 });
-
-export const aiToneSchema = z.enum([
-  "professional",
-  "casual",
-  "playful",
-  "bold",
-]);
 
 export const aiMediaSchema = z.object({
   hasImages: z.boolean().default(false),

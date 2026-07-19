@@ -4,7 +4,11 @@ import { Bot, PencilLine, RefreshCw } from "lucide-react";
 
 import { PlatformIcon } from "@/components/features/accounts/PlatformIcon";
 import { Button } from "@/components/ui/button";
-import { getConstraints, type Platform } from "@/lib/platforms/constraints";
+import {
+  getConstraints,
+  getMediaRequirementMessage,
+  hasRequiredMedia,
+} from "@/lib/platforms/constraints";
 import { cn } from "@/lib/utils";
 import type { ComposerMedia, ComposerVariant } from "@/stores/composerStore";
 
@@ -15,20 +19,6 @@ interface PlatformVariantCardProps {
   onChange: (value: string) => void;
 }
 
-function mediaRequirement(platform: Platform): string | null {
-  const constraints = getConstraints(platform);
-
-  if (constraints.requiresImage) {
-    return `${platform === "INSTAGRAM" ? "Instagram" : platform} requires an image`;
-  }
-
-  if (constraints.requiresVideo) {
-    return `${platform === "TIKTOK" ? "TikTok" : platform} requires a video`;
-  }
-
-  return null;
-}
-
 export function PlatformVariantCard({
   variant,
   media,
@@ -36,12 +26,8 @@ export function PlatformVariantCard({
   onChange,
 }: PlatformVariantCardProps) {
   const constraints = getConstraints(variant.platform);
-  const requirement = mediaRequirement(variant.platform);
-  const hasRequiredMedia = requirement
-    ? variant.platform === "INSTAGRAM"
-      ? media.some((item) => item.type === "IMAGE")
-      : media.some((item) => item.type === "VIDEO")
-    : true;
+  const requirement = getMediaRequirementMessage(variant.platform);
+  const hasRequiredPlatformMedia = hasRequiredMedia(variant.platform, media);
   const charactersRemaining = constraints.maxChars - variant.adaptedText.length;
   const isOverLimit = charactersRemaining < 0;
 
@@ -115,11 +101,13 @@ export function PlatformVariantCard({
           <span
             className={cn(
               "inline-flex items-center gap-1",
-              hasRequiredMedia ? "text-emerald-400" : "text-muted-foreground",
+              hasRequiredPlatformMedia
+                ? "text-emerald-500"
+                : "text-muted-foreground",
             )}
           >
             <PencilLine className="size-3" />
-            {requirement}{hasRequiredMedia ? " ✓" : ""}
+            {requirement}{hasRequiredPlatformMedia ? " ✓" : ""}
           </span>
         ) : null}
       </div>

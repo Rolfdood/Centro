@@ -1,7 +1,7 @@
 "use client";
 
 import { ImagePlus, Trash2, Upload } from "lucide-react";
-import { useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { ComposerMedia } from "@/stores/composerStore";
@@ -11,37 +11,72 @@ interface MediaUploaderProps {
   onChange: (media: ComposerMedia[]) => void;
 }
 
-function createMediaId(file: File): string {
-  return `${file.name}-${file.size}-${file.lastModified}`;
-}
-
 export function MediaUploader({ media, onChange }: MediaUploaderProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const objectUrls = useRef(new Set<string>());
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const activeUrls = new Set(
+      media
+        .filter((item) => item.url.startsWith("blob:"))
+        .map((item) => item.url),
+    );
+
+    objectUrls.current.forEach((url) => {
+      if (!activeUrls.has(url)) {
+        URL.revokeObjectURL(url);
+        objectUrls.current.delete(url);
+      }
+    });
+  }, [media]);
+
+  useEffect(() => {
+    const urlsToRevoke = objectUrls.current;
+
+    return () => {
+      urlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
+      urlsToRevoke.clear();
+    };
+  }, []);
 
   function addFiles(files: FileList | null): void {
     if (!files) {
       return;
     }
 
-    const additions = Array.from(files)
-      .filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"))
-      .map<ComposerMedia>((file) => ({
-        id: createMediaId(file),
-        url: URL.createObjectURL(file),
+    const selectedFiles = Array.from(files);
+    const acceptedFiles = selectedFiles.filter(
+      (file) => file.type.startsWith("image/") || file.type.startsWith("video/"),
+    );
+    setFileError(
+      acceptedFiles.length === selectedFiles.length
+        ? null
+        : "Only images and video are supported.",
+    );
+
+    const additions = acceptedFiles.map<ComposerMedia>((file) => {
+      const url = URL.createObjectURL(file);
+      objectUrls.current.add(url);
+
+      return {
+        id: crypto.randomUUID(),
+        url,
         type: file.type.startsWith("video/") ? "VIDEO" : "IMAGE",
         sizeBytes: file.size,
         mimeType: file.type,
-      }));
+      };
+    });
 
-    const knownIds = new Set(media.map((item) => item.id));
-    onChange([...media, ...additions.filter((item) => !knownIds.has(item.id))]);
+    onChange([...media, ...additions]);
   }
 
   function removeMedia(mediaId: string): void {
     const item = media.find((candidate) => candidate.id === mediaId);
     if (item?.url.startsWith("blob:")) {
       URL.revokeObjectURL(item.url);
+      objectUrls.current.delete(item.url);
     }
     onChange(media.filter((item) => item.id !== mediaId));
   }
@@ -57,6 +92,11 @@ export function MediaUploader({ media, onChange }: MediaUploaderProps) {
             Add local images or video to validate platform requirements. Uploading happens when publishing is available.
           </p>
         </div>
+        {fileError ? (
+          <p className="w-full text-sm text-destructive" role="alert">
+            {fileError}
+          </p>
+        ) : null}
         <input
           ref={inputRef}
           id={inputId}

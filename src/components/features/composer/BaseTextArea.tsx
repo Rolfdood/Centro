@@ -30,7 +30,6 @@ export function BaseTextArea({ value, onChange }: BaseTextAreaProps) {
         placeholder="What's on your mind? Start typing to generate variations..."
         aria-label="Post draft"
       />
-
     </section>
   );
 }

@@ -7,9 +7,14 @@ import { Button } from "@/components/ui/button";
 interface PublishFooterProps {
   selectedCount: number;
   isValid: boolean;
+  onInvalidAttempt: () => void;
 }
 
-export function PublishFooter({ selectedCount, isValid }: PublishFooterProps) {
+export function PublishFooter({
+  selectedCount,
+  isValid,
+  onInvalidAttempt,
+}: PublishFooterProps) {
   const hasSelectedPlatforms = selectedCount > 0;
   const canPublish = hasSelectedPlatforms && isValid;
 
@@ -24,37 +29,64 @@ export function PublishFooter({ selectedCount, isValid }: PublishFooterProps) {
             </p>
           ) : null}
           {hasSelectedPlatforms && !isValid ? (
-            <p className="mt-0.5 text-xs text-destructive">
+            <div className="mt-0.5 flex items-center gap-2 text-xs text-destructive">
+              <p>
               Fix the highlighted platform variants to continue.
-            </p>
+              </p>
+              <button
+                type="button"
+                onClick={onInvalidAttempt}
+                className="underline underline-offset-2 hover:text-destructive/80"
+              >
+                Review errors
+              </button>
+            </div>
           ) : null}
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
-          <Button
-            type="button"
-            variant="outline"
+          <span
             className="flex-1 sm:flex-none"
-            disabled={!canPublish}
-            title={canPublish ? "Scheduling is coming soon" : "Fix validation errors before scheduling"}
+            onClick={() => {
+              if (!canPublish && hasSelectedPlatforms) {
+                onInvalidAttempt();
+              }
+            }}
           >
-            <CalendarClock className="mr-2" />
-            Schedule
-          </Button>
-          <Button
-            type="button"
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={!canPublish}
+              title={canPublish ? "Scheduling is coming soon" : "Fix validation errors before scheduling"}
+            >
+              <CalendarClock className="mr-2" />
+              Schedule
+            </Button>
+          </span>
+          <span
             className="flex-1 sm:flex-none"
-            disabled={!canPublish}
-            title={
-              canPublish
-                ? "Publishing will be enabled in the next composer step"
-                : hasSelectedPlatforms
-                  ? "Fix validation errors before publishing"
-                  : "Select at least one platform first"
-            }
+            onClick={() => {
+              if (!canPublish && hasSelectedPlatforms) {
+                onInvalidAttempt();
+              }
+            }}
           >
-            <Send className="mr-2" />
-            Publish now
-          </Button>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              disabled={!canPublish}
+              title={
+                canPublish
+                  ? "Publishing will be enabled in the next composer step"
+                  : hasSelectedPlatforms
+                    ? "Fix validation errors before publishing"
+                    : "Select at least one platform first"
+              }
+            >
+              <Send className="mr-2" />
+              Publish now
+            </Button>
+          </span>
         </div>
       </div>
     </footer>

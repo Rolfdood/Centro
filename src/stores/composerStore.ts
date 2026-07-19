@@ -64,7 +64,7 @@ function createInitialDraft(): ComposerDraftState {
     selectedAccountIds: [],
     variants: {},
     media: [],
-    tone: "PROFESSIONAL",
+    tone: "professional",
   };
 }
 

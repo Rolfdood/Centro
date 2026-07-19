@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
+
 import { useAccounts } from "@/lib/api";
 import { validatePost } from "@/lib/platforms/constraints";
 import { useComposerStore } from "@/stores/composerStore";
@@ -26,19 +28,42 @@ export function Composer() {
   const setVariantText = useComposerStore((state) => state.setVariantText);
   const setMedia = useComposerStore((state) => state.setMedia);
   const setTone = useComposerStore((state) => state.setTone);
-  const selectedVariants = selectedAccountIds.flatMap((accountId) => {
-    const variant = variants[accountId];
-    return variant ? [variant] : [];
-  });
-  const validations = new Map(
-    selectedVariants.map((variant) => [
-      variant.accountId,
-      validatePost(variant.platform, variant.adaptedText, media),
-    ]),
-  );
-  const variantsAreValid = selectedVariants.every(
-    (variant) => validations.get(variant.accountId)?.valid,
-  );
+  const { selectedVariants, validations, variantsAreValid, firstInvalidAccountId } =
+    useMemo(() => {
+      const selectedVariants = selectedAccountIds.flatMap((accountId) => {
+        const variant = variants[accountId];
+        return variant ? [variant] : [];
+      });
+      const validations = new Map(
+        selectedVariants.map((variant) => [
+          variant.accountId,
+          validatePost(variant.platform, variant.adaptedText, media),
+        ]),
+      );
+      const firstInvalidAccountId = selectedVariants.find(
+        (variant) => !validations.get(variant.accountId)?.valid,
+      )?.accountId;
+
+      return {
+        selectedVariants,
+        validations,
+        variantsAreValid: selectedVariants.every(
+          (variant) => validations.get(variant.accountId)?.valid,
+        ),
+        firstInvalidAccountId,
+      };
+    }, [media, selectedAccountIds, variants]);
+  const scrollToFirstInvalidVariant = useCallback(() => {
+    if (!firstInvalidAccountId) {
+      return;
+    }
+
+    const card = document.getElementById(`variant-${firstInvalidAccountId}`);
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+    card?.querySelector<HTMLTextAreaElement>("textarea")?.focus({
+      preventScroll: true,
+    });
+  }, [firstInvalidAccountId]);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col pb-4">
@@ -110,6 +135,7 @@ export function Composer() {
       <PublishFooter
         selectedCount={selectedAccountIds.length}
         isValid={variantsAreValid}
+        onInvalidAttempt={scrollToFirstInvalidVariant}
       />
     </div>
   );
