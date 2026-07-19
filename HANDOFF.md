@@ -11,7 +11,9 @@
 | `feature/Centro-005` | Merged to `develop` |
 | `feature/Centro-006` | Merged to `develop` |
 | `feature/Centro-007` | Merged to `develop` |
-| `feature/Centro-008` | In progress |
+| `feature/Centro-008` | Merged to `develop` |
+| `feature/Centro-009` | Merged to `develop` |
+| `feature/Centro-010` | In progress |
 
 ---
 
@@ -24,116 +26,63 @@
 
 ---
 
-## Centro-005 - API Contracts and Validation Schemas
+## Centro-005 to Centro-008 Summary
 
-### Changes
-- Added shared Zod request validation schemas:
-  - `connectAccountSchema` validates platform and non-empty account handle input.
-  - `createPostSchema` validates UUID idempotency keys, base text, targets, media, optional scheduling, and prevents duplicate account selection.
-  - Missing target variants are normalized to the base text before persistence.
-  - `validationErrorSchema` lives in `validations/common.ts` and defines the sanitized API validation-error response shape.
-- Added client-safe, strict Zod response DTOs for social accounts, media assets, post targets, post lists, and post detail responses.
-- Added inferred TypeScript types for every request and response contract in `src/types/index.ts`.
-- Added `getAuthenticatedUser()` in `src/lib/auth.ts` so route handlers can consistently resolve the authenticated user ID without exposing session details.
-- Added a GitHub Actions CI workflow for pull requests targeting `develop` and pushes to `develop`; it provisions PostgreSQL, installs dependencies from the frozen lockfile, generates Prisma Client, applies migrations, and runs lint, typecheck, and build.
-
-### Files
-- `src/lib/auth.ts`
-- `src/lib/validations/account.ts`
-- `src/lib/validations/common.ts`
-- `src/lib/validations/post.ts`
-- `src/types/index.ts`
-- `.github/workflows/ci.yml`
-
-### Verification
-- The Centro-005 branch was rebased cleanly onto `origin/develop` after Centro-004 merged.
-- `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass locally.
+- Established shared Zod request/response contracts, authenticated-user resolution, and CI verification for API work.
+- Added the mock platform adapter boundary for all five supported platforms, including deterministic publishing, failure simulation through `MOCK_FAILURE_RATE`, auth checks, and analytics fixtures.
+- Delivered authenticated mock social-account APIs for connecting, listing, and safely disconnecting user-owned accounts.
+- Delivered idempotent post creation, list, and detail APIs with durable draft targets, user scoping, shared DTO mapping, and explicit Day 2 hard-cut validation for media uploads and scheduling.
 
 ---
 
-## Centro-006 - Mock Platform Adapters and Registry
+## Centro-009 - Idempotent Publish Service and Target Status Handling
 
 ### Changes
-- Extended the platform adapter contract with Zod-validated publish, auth-check, and analytics response types.
-- Added `BaseMockAdapter`, shared by the five platform adapters for X, Facebook, Instagram, TikTok, and LinkedIn.
-- Mock publishing validates against the shared platform constraints, simulates approximately 600ms latency, returns deterministic mock URLs, and caches successful results by target and idempotency key.
-- Added deterministic failure simulation through `MOCK_FAILURE_RATE`, account-status auth checks, and deterministic analytics that grow over time from each target ID.
-- Documented that mock auth uses `RECONNECT_REQUIRED` as its inactive state; token expiry simulation belongs to real adapters.
-- Added the platform adapter registry. It returns only mock adapters while `MOCK_PLATFORMS=true` and fails clearly when real adapters are not configured.
-- Added adapter smoke coverage for idempotent publishing, constraint failures, auth status, failure-rate parsing, and deterministic analytics.
+- Added a server-only publish service that loads a user-owned post with its targets, media, and social accounts before publishing.
+- Publishes only `DRAFT` targets through the platform adapter registry, transitioning each target through `PUBLISHING` to `PUBLISHED` or `FAILED`.
+- Atomically claims the parent post with `DRAFT` to `PUBLISHING` before loading targets, so a concurrent publish request cannot deliver the same target twice.
+- Persists target publish timestamps, URLs, sanitized errors, and attempt counts; previously published targets are idempotent no-ops.
+- Checks account availability before publishing and marks accounts `RECONNECT_REQUIRED` when authentication is no longer active or expires during publishing.
+- Added one shared parent-status derivation function for `PUBLISHED`, `PARTIALLY_FAILED`, and `FAILED` post outcomes.
+- Added publisher smoke coverage for successful and all-failed publishing, inactive accounts, adapter exceptions, attempts, concurrent publish requests, and repeated publish no-op behavior.
 
 ### Files
-- `src/lib/platforms/types.ts`
-- `src/lib/platforms/registry.ts`
-- `src/lib/platforms/adapters/baseMock.ts`
-- `src/lib/platforms/adapters/mockX.ts`
-- `src/lib/platforms/adapters/mockFacebook.ts`
-- `src/lib/platforms/adapters/mockInstagram.ts`
-- `src/lib/platforms/adapters/mockTikTok.ts`
-- `src/lib/platforms/adapters/mockLinkedIn.ts`
-- `tests/platform-adapters.test.ts`
+- `src/lib/posts/publisher.ts`
+- `tests/publisher.test.ts`
+- `package.json`
 
 ### Verification
-- The Centro-006 branch was rebased cleanly onto `origin/develop` after Centro-005 merged.
-- `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass locally.
+- Publisher smoke tests pass, along with the existing platform, account, and post API smoke suites.
+- TypeScript verification and linting for the publisher implementation and tests pass.
 
 ---
 
-## Centro-007 - Mock Social Account APIs
+## Centro-010 - Publish-Now API Route and Backend Smoke Tests
 
 ### Changes
-- Added authenticated `GET /api/accounts` to return the current user's social accounts in stable platform and handle order.
-- Added authenticated `POST /api/accounts` for mocked account connection. It validates platform and handle input, generates a mock token server-side, and returns a sanitized account DTO.
-- Added duplicate-connect handling for the user/platform/handle unique constraint with a sanitized `409` response.
-- Added authenticated `DELETE /api/accounts/[id]`, scoped to the current user. It validates the route parameter, removes accounts without targets, and returns a clear conflict instead of deleting account history.
-- Added structured field errors for invalid account payloads and route parameters, plus stricter cuid validation for account IDs.
-- Added dependency-injected account route handlers and smoke coverage for list, connect, duplicate, invalid, missing, target-conflict, and successful-disconnect paths.
-- Scheduling remains out of scope; a future scheduling phase must replace the target-history guard with scheduled-target cancellation.
+- Added authenticated `POST /api/posts/[id]/publish`, backed by the Centro-009 publishing service.
+- Added a dependency-injected publish route handler using the existing post ID schema and authenticated-user boundary.
+- Restricts publishing to user-owned posts and returns `404` for missing or foreign posts without disclosing their existence.
+- Returns the existing post-detail DTO after publishing and uses sanitized `401`, `400`, and `500` responses for unauthorized, invalid, and unexpected-error paths.
+- Added publish API smoke coverage for successful, partially failed, repeated, invalid-ID, missing-post, and unauthenticated requests.
 
 ### Files
-- `src/app/api/accounts/route.ts`
-- `src/app/api/accounts/[id]/route.ts`
-- `src/lib/accounts/route-handlers.ts`
-- `src/lib/validations/account.ts`
-- `src/types/index.ts`
-- `tests/account-api.test.ts`
-
-### Verification
-- The Centro-007 branch was rebased cleanly onto `origin/develop` after Centro-006 merged.
-- `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass locally.
-
----
-
-## Centro-008 - Idempotent Post APIs
-
-### Changes
-- Added authenticated `GET /api/posts`, returning the current user's posts in reverse creation order with sanitized list DTOs.
-- Added authenticated `POST /api/posts`, which validates the idempotency key, base text, selected active accounts, platform text limits, and duplicate target accounts before creating durable draft post targets.
-- Repeated idempotency keys return the original post for the owning user; a key owned by another user receives a generic conflict response.
-- Added authenticated `GET /api/posts/[id]`, scoped to the current user and returning `404` without revealing another user's post.
-- Added shared post mappers for stable list/detail DTOs, relation loading, and ISO date serialization.
-- Day 2 hard cuts are enforced explicitly: media uploads and scheduling requests receive validation errors rather than being accepted and discarded.
-- Added post API smoke coverage for successful creation, idempotent replay, and cross-user idempotency conflicts.
-
-### Files
-- `src/app/api/posts/route.ts`
-- `src/app/api/posts/[id]/route.ts`
-- `src/lib/posts.ts`
+- `src/app/api/posts/[id]/publish/route.ts`
 - `src/lib/posts/route-handlers.ts`
-- `src/lib/validations/post.ts`
-- `tests/post-api.test.ts`
+- `tests/publish-api.test.ts`
+- `package.json`
 
 ### Verification
-- The Centro-008 branch was rebased cleanly onto `origin/develop` after Centro-007 merged.
-- Run before opening the PR: `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
+- Publish API smoke tests pass, together with the publisher and existing platform, account, and post API smoke suites.
+- TypeScript verification and linting for the publish route implementation and tests pass.
 
 ---
 
 ## Branch State
 
 ```
-364b652 feature/Centro-008 [Centro-008] - Implement idempotent post APIs
-88e9c47 origin/develop [Centro-007] - Implement mock social account APIs
+2100e04 feature/Centro-010 [Centro-010] - Add publish-now API route
+08a51ca origin/develop [Centro-009] - Implement idempotent publish service and target status handling
 ```
 
 ---
@@ -171,5 +120,5 @@ pnpm prisma studio
 
 ## Next Steps
 
-1. Review Centro-008 and open its PR when approved.
-2. Continue with Day 3 publishing work after Centro-008 review is complete.
+1. Review Centro-010 after reviewing its Centro-009 dependency.
+2. Open pull requests only after both stacked branches are approved.
