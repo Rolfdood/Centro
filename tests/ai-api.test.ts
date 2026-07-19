@@ -27,6 +27,16 @@ async function run(): Promise<void> {
   assert.equal(response.status, 200);
   assert.equal(aiAdaptResponseSchema.safeParse(await response.json()).success, true);
 
+  const partialMedia = await handler(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Launch day is here",
+      platforms: ["INSTAGRAM"],
+      media: { hasImages: true },
+    }),
+  }));
+  assert.equal(partialMedia.status, 200);
+
   const invalidOutput = createAiAdaptRouteHandler({
     getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
     provider: { model: "mock", adapt: async () => "x".repeat(281) },

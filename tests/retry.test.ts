@@ -37,6 +37,35 @@ async function run(): Promise<void> {
   assert.deepEqual(calls.filter((call) => call.startsWith("adapter:")), ["adapter:failed"]);
   assert.equal(calls.includes("adapter:published"), false);
 
+  let claimed = false;
+  const concurrentCalls: string[] = [];
+  const concurrentService = createRetryPublisher({
+    claimFailedTargets: async () => {
+      if (claimed) return null;
+      claimed = true;
+      return post;
+    },
+    findPost: async () => post,
+    loadResult: async () => null,
+    updatePostStatus: async () => undefined,
+    markTargetPublished: async (id) => { concurrentCalls.push(`published:${id}`); },
+    markTargetFailed: async (id) => { concurrentCalls.push(`failed:${id}`); },
+    markAccountReconnectRequired: async () => undefined,
+    getAdapter: () => ({
+      platform: "LINKEDIN",
+      getConstraints: () => ({ maxChars: 3000, maxImages: 9, requiresImage: false, requiresVideo: false, maxVideoSeconds: 0, maxFileSizeMB: 10, supportedMediaTypes: [] }),
+      validatePost: () => ({ valid: true, errors: [] }),
+      checkAuth: async () => ({ active: true }),
+      publishPost: async (input) => { concurrentCalls.push(`adapter:${input.targetId}`); return { ok: true, publishedUrl: "https://mock.local/retry" }; },
+      fetchAnalytics: async () => ({ impressions: 1, likes: 1, comments: 1, shares: 1 }),
+    }),
+  });
+  await Promise.all([
+    concurrentService("post-1", "user-1"),
+    concurrentService("post-1", "user-1"),
+  ]);
+  assert.deepEqual(concurrentCalls.filter((call) => call.startsWith("adapter:")), ["adapter:failed"]);
+
   console.log("Retry tests passed.");
 }
 

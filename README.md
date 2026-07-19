@@ -79,7 +79,9 @@ Mock platform publishing is enabled by default with `MOCK_PLATFORMS="true"`.
 Set `MOCK_FAILURE_RATE` to a value between `0` and `1` before starting the app
 to exercise failed-target status and retry behavior. A retry only republishes
 targets whose persisted status is `FAILED`; previously published targets remain
-untouched.
+untouched. Failures are deterministic for a target while the failure rate is
+unchanged, so set `MOCK_FAILURE_RATE="0"` and restart the app before retrying
+when demonstrating a recovery after a simulated failure.
 
 ## Demo journey
 
