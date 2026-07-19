@@ -38,6 +38,10 @@ async function adaptPost(input: AdaptPostInput): Promise<AdaptPostResult> {
     throw new Error("Please provide a draft and at least one platform.");
   }
 
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 600);
+  });
+
   return adaptPostResultSchema.parse({
     source: "stub",
     variants: parsed.data.platforms.map((platform) => ({

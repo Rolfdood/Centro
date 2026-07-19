@@ -6,12 +6,12 @@ import { useAccounts } from "@/lib/api";
 import { validatePost } from "@/lib/platforms/constraints";
 import { useComposerStore } from "@/stores/composerStore";
 
+import { AiAdaptPanel } from "./AiAdaptPanel";
 import { BaseTextArea } from "./BaseTextArea";
 import { MediaUploader } from "./MediaUploader";
 import { PlatformSelector } from "./PlatformSelector";
 import { PlatformVariantCard } from "./PlatformVariantCard";
 import { PublishFooter } from "./PublishFooter";
-import { ToneSelector } from "./ToneSelector";
 
 export function Composer() {
   const { data: accounts = [], isLoading, isError } = useAccounts();
@@ -26,6 +26,7 @@ export function Composer() {
   const selectAccount = useComposerStore((state) => state.selectAccount);
   const deselectAccount = useComposerStore((state) => state.deselectAccount);
   const setVariantText = useComposerStore((state) => state.setVariantText);
+  const setAiVariant = useComposerStore((state) => state.setAiVariant);
   const setMedia = useComposerStore((state) => state.setMedia);
   const setTone = useComposerStore((state) => state.setTone);
   const { selectedVariants, validations, variantsAreValid, firstInvalidAccountId } =
@@ -102,34 +103,40 @@ export function Composer() {
 
         <BaseTextArea value={baseText} onChange={setBaseText} />
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Platform variations
-          </h2>
-          <ToneSelector value={tone} onChange={setTone} />
-        </div>
-
         <MediaUploader media={media} onChange={setMedia} />
 
-        {selectedVariants.length > 0 ? (
-          <section className="space-y-4" aria-label="Platform variations">
-            {selectedVariants.map((variant) => (
-              <PlatformVariantCard
-                key={variant.accountId}
-                variant={variant}
-                media={media}
-                errors={validations.get(variant.accountId)?.errors ?? []}
-                onChange={(adaptedText) =>
-                  setVariantText(variant.accountId, adaptedText)
-                }
-              />
-            ))}
-          </section>
-        ) : (
-          <section className="rounded-lg border border-dashed border-border bg-card/50 p-5 text-sm text-muted-foreground">
-            Select a connected platform to create a tailored post variation.
-          </section>
-        )}
+        <AiAdaptPanel
+          baseText={baseText}
+          variants={selectedVariants}
+          media={media}
+          tone={tone}
+          onToneChange={setTone}
+          onGenerated={setAiVariant}
+        >
+          {({ generatingAccountIds, onRegenerate }) =>
+            selectedVariants.length > 0 ? (
+              <section className="space-y-4" aria-label="Platform variations">
+                {selectedVariants.map((variant) => (
+                  <PlatformVariantCard
+                    key={variant.accountId}
+                    variant={variant}
+                    media={media}
+                    errors={validations.get(variant.accountId)?.errors ?? []}
+                    isGenerating={generatingAccountIds.has(variant.accountId)}
+                    onChange={(adaptedText) =>
+                      setVariantText(variant.accountId, adaptedText)
+                    }
+                    onRegenerate={() => onRegenerate(variant)}
+                  />
+                ))}
+              </section>
+            ) : (
+              <section className="rounded-lg border border-dashed border-border bg-card/50 p-5 text-sm text-muted-foreground">
+                Select a connected platform to create a tailored post variation.
+              </section>
+            )
+          }
+        </AiAdaptPanel>
       </div>
 
       <PublishFooter
