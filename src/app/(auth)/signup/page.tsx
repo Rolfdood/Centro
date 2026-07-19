@@ -7,6 +7,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { completeSignupFlow } from "@/lib/auth/signup-flow";
 
 import { loginUser } from "../login/actions";
 import { registerUser, type RegisterFieldErrors } from "./actions";
@@ -27,29 +28,28 @@ export default function SignupPage() {
     setServerError("");
     setLoading(true);
 
-    const result = await registerUser({
+    const result = await completeSignupFlow({
       name,
       email,
       password,
       confirmPassword,
+    }, {
+      register: registerUser,
+      login: loginUser,
     });
 
     if (!result.success) {
       setLoading(false);
-      setErrors(result.fieldErrors ?? {});
-      setServerError(result.error ?? "Unable to create your account.");
+      if (result.stage === "registration") {
+        setErrors(result.result.fieldErrors ?? {});
+        setServerError(result.result.error ?? "Unable to create your account.");
+      } else {
+        setServerError("Your account was created. Please sign in to continue.");
+      }
       return;
     }
-
-    const loginResult = await loginUser({ email, password });
     setLoading(false);
-
-    if (!loginResult.success) {
-      setServerError("Your account was created. Please sign in to continue.");
-      return;
-    }
-
-    router.push("/onboarding");
+    router.push(result.redirectTo);
   }
 
   return (

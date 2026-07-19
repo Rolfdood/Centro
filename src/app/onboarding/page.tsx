@@ -3,11 +3,17 @@ import { redirect } from "next/navigation";
 import { OnboardingAccountList } from "@/components/features/accounts/OnboardingAccountList";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getOnboardingRedirect } from "@/lib/onboarding/redirects";
 
 export default async function OnboardingPage() {
   const authentication = await getAuthenticatedUser();
   if (!authentication.ok) {
-    redirect("/login");
+    redirect(
+      getOnboardingRedirect({
+        isAuthenticated: false,
+        hasConnectedAccount: false,
+      }) ?? "/login",
+    );
   }
 
   const connectedAccount = await db.socialAccount.findFirst({
@@ -15,8 +21,13 @@ export default async function OnboardingPage() {
     select: { id: true },
   });
 
-  if (connectedAccount) {
-    redirect("/dashboard");
+  const destination = getOnboardingRedirect({
+    isAuthenticated: true,
+    hasConnectedAccount: connectedAccount !== null,
+  });
+
+  if (destination) {
+    redirect(destination);
   }
 
   return (
