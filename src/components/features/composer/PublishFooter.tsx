@@ -1,19 +1,25 @@
 "use client";
 
-import { CalendarClock, Send } from "lucide-react";
+import { CalendarClock, LoaderCircle, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 interface PublishFooterProps {
   selectedCount: number;
   isValid: boolean;
+  isPublishing: boolean;
+  publishError: string | null;
   onInvalidAttempt: () => void;
+  onPublish: () => void;
 }
 
 export function PublishFooter({
   selectedCount,
   isValid,
+  isPublishing,
+  publishError,
   onInvalidAttempt,
+  onPublish,
 }: PublishFooterProps) {
   const hasSelectedPlatforms = selectedCount > 0;
   const canPublish = hasSelectedPlatforms && isValid;
@@ -42,13 +48,18 @@ export function PublishFooter({
               </button>
             </div>
           ) : null}
+          {publishError ? (
+            <p className="mt-1 text-xs text-destructive" role="alert">
+              {publishError}
+            </p>
+          ) : null}
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
           <Button
             type="button"
             variant="outline"
             className="flex-1 sm:flex-none"
-            disabled={!canPublish}
+            disabled={!canPublish || isPublishing}
             title={
               canPublish
                 ? "Scheduling is coming soon"
@@ -61,17 +72,22 @@ export function PublishFooter({
           <Button
             type="button"
             className="flex-1 sm:flex-none"
-            disabled={!canPublish}
+            disabled={!canPublish || isPublishing}
+            onClick={onPublish}
             title={
               canPublish
-                ? "Publishing will be enabled in the next composer step"
+                ? "Publish this post now"
                 : hasSelectedPlatforms
                   ? "Fix validation errors before publishing"
                   : "Select at least one platform first"
             }
           >
-            <Send className="mr-2" />
-            Publish now
+            {isPublishing ? (
+              <LoaderCircle className="mr-2 animate-spin" />
+            ) : (
+              <Send className="mr-2" />
+            )}
+            {isPublishing ? "Publishing…" : "Publish now"}
           </Button>
         </div>
       </div>

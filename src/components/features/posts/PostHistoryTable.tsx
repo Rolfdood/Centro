@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, FileText, Plus, X } from "lucide-react";
 
 import { PostHistoryRow } from "@/components/features/posts/PostHistoryRow";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { usePosts } from "@/lib/api";
+import { usePosts, useRetryPost } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { PostListItemDto } from "@/types";
 
@@ -104,6 +104,7 @@ interface PostHistoryTableProps {
 
 export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
   const { data: posts = [], error, isLoading } = usePosts();
+  const retryPost = useRetryPost();
   const [activeFilter, setActiveFilter] = useState<PostFilter>("ALL");
   const [page, setPage] = useState(1);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
@@ -131,8 +132,19 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
     setPage(1);
   }
 
-  function handleRetry(_postId: string) {
-    setRetryMessage("Retry is not available yet. Please try again later.");
+  async function handleRetry(postId: string) {
+    if (retryPost.isPending) {
+      return;
+    }
+
+    setRetryMessage(null);
+
+    try {
+      await retryPost.mutateAsync({ postId });
+      setRetryMessage("Failed targets were retried.");
+    } catch {
+      setRetryMessage("We couldn’t retry the failed targets. Please try again.");
+    }
   }
 
   if (isLoading) return <LoadingPosts />;
@@ -221,6 +233,7 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
                   post={post}
                   dateLabel={formatPostDate(getPostDate(post), timezone)}
                   onRetry={handleRetry}
+                  isRetrying={retryPost.isPending}
                 />
               ))}
             </div>

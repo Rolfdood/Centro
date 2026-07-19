@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { useAccounts } from "@/lib/api";
+import { useAccounts, useCreatePost, usePublishPost } from "@/lib/api";
 import { validatePost } from "@/lib/platforms/constraints";
 import { useComposerStore } from "@/stores/composerStore";
 
@@ -14,7 +15,13 @@ import { PlatformVariantCard } from "./PlatformVariantCard";
 import { PublishFooter } from "./PublishFooter";
 
 export function Composer() {
+  const router = useRouter();
   const { data: accounts = [], isLoading, isError } = useAccounts();
+  const createPost = useCreatePost();
+  const publishPost = usePublishPost();
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [isPublishSubmitted, setIsPublishSubmitted] = useState(false);
+  const publishRequestedRef = useRef(false);
   const baseText = useComposerStore((state) => state.baseText);
   const selectedAccountIds = useComposerStore(
     (state) => state.selectedAccountIds,
@@ -23,12 +30,14 @@ export function Composer() {
   const variants = useComposerStore((state) => state.variants);
   const media = useComposerStore((state) => state.media);
   const tone = useComposerStore((state) => state.tone);
+  const idempotencyKey = useComposerStore((state) => state.idempotencyKey);
   const selectAccount = useComposerStore((state) => state.selectAccount);
   const deselectAccount = useComposerStore((state) => state.deselectAccount);
   const setVariantText = useComposerStore((state) => state.setVariantText);
   const setAiVariant = useComposerStore((state) => state.setAiVariant);
   const setMedia = useComposerStore((state) => state.setMedia);
   const setTone = useComposerStore((state) => state.setTone);
+  const beginNewDraft = useComposerStore((state) => state.beginNewDraft);
   const { selectedVariants, validations, variantsAreValid, firstInvalidAccountId } =
     useMemo(() => {
       const selectedVariants = selectedAccountIds.flatMap((accountId) => {
@@ -65,6 +74,63 @@ export function Composer() {
       preventScroll: true,
     });
   }, [firstInvalidAccountId]);
+  const isPublishing =
+    isPublishSubmitted || createPost.isPending || publishPost.isPending;
+  const handlePublish = useCallback(async () => {
+    if (publishRequestedRef.current) {
+      return;
+    }
+
+    if (!variantsAreValid || selectedVariants.length === 0) {
+      scrollToFirstInvalidVariant();
+      return;
+    }
+
+    setPublishError(null);
+    publishRequestedRef.current = true;
+    setIsPublishSubmitted(true);
+
+    try {
+      const post = await createPost.mutateAsync({
+        idempotencyKey,
+        baseText,
+        targets: selectedVariants.map((variant) => ({
+          accountId: variant.accountId,
+          adaptedText: variant.adaptedText,
+        })),
+        media: media.map((asset, index) => ({
+          url: asset.url,
+          type: asset.type,
+          sizeBytes: asset.sizeBytes,
+          width: asset.width ?? null,
+          height: asset.height ?? null,
+          order: index,
+        })),
+        scheduledAt: null,
+      });
+      await publishPost.mutateAsync({ postId: post.id });
+
+      beginNewDraft();
+      router.push("/dashboard");
+    } catch {
+      publishRequestedRef.current = false;
+      setIsPublishSubmitted(false);
+      setPublishError(
+        "We couldn’t publish this post. Please review your draft and try again.",
+      );
+    }
+  }, [
+    baseText,
+    beginNewDraft,
+    createPost,
+    idempotencyKey,
+    media,
+    publishPost,
+    router,
+    scrollToFirstInvalidVariant,
+    selectedVariants,
+    variantsAreValid,
+  ]);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col pb-4">
@@ -142,7 +208,10 @@ export function Composer() {
       <PublishFooter
         selectedCount={selectedAccountIds.length}
         isValid={variantsAreValid}
+        isPublishing={isPublishing}
+        publishError={publishError}
         onInvalidAttempt={scrollToFirstInvalidVariant}
+        onPublish={handlePublish}
       />
     </div>
   );
