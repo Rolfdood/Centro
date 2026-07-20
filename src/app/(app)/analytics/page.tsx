@@ -6,6 +6,8 @@ import {
   type DemoPostMetric,
 } from "@/components/features/analytics/PostMetricsTable";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 const DEMO_METRICS = [
   { label: "Posts this month", value: "142", numericValue: 142, trend: "+12%", trendDirection: "up" },
@@ -66,9 +68,9 @@ export default function AnalyticsPage() {
         <div>
           <div className="mb-2 flex items-center gap-2">
             <h2 className="text-lg font-semibold tracking-tight">Performance overview</h2>
-            <span className="rounded border border-border bg-muted/30 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <Badge variant="outline" className="border-border bg-muted/30 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               Demo data
-            </span>
+            </Badge>
           </div>
           <p className="text-sm text-muted-foreground">Last 30 days compared with the previous period.</p>
         </div>
@@ -90,16 +92,19 @@ export default function AnalyticsPage() {
       </section>
 
       <section className="mt-8" aria-labelledby="per-platform-metrics">
-        <div className="mb-4 flex items-center justify-between gap-4 border-b border-border pb-2">
+        <div className="mb-4">
+          <div className="flex items-center justify-between gap-4 pb-2">
           <div className="flex items-center gap-2">
             <h3 id="per-platform-metrics" className="font-mono text-[11px] font-medium uppercase tracking-widest">
               Per-platform metrics
             </h3>
-            <span className="rounded border border-border bg-muted/30 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <Badge variant="outline" className="border-border bg-muted/30 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               Demo data
-            </span>
+            </Badge>
           </div>
           <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">Static preview</span>
+          </div>
+          <Separator />
         </div>
         <PostMetricsTable rows={DEMO_POST_METRICS} />
       </section>

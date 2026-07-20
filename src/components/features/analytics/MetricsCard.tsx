@@ -1,4 +1,5 @@
 import { TrendBadge } from "./TrendBadge";
+import { Badge } from "@/components/ui/badge";
 
 interface MetricsCardProps {
   label: string;
@@ -24,9 +25,9 @@ export function MetricsCard({
           {label}
         </p>
         {isStale ? (
-          <span className="shrink-0 rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide text-amber-300">
+          <Badge className="shrink-0 border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide text-amber-300">
             Stale
-          </span>
+          </Badge>
         ) : null}
       </div>
       <div className="flex items-baseline gap-2">

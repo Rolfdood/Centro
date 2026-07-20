@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import type { PostListItemDto } from "@/types";
 
 type PostStatus = PostListItemDto["status"];
@@ -37,7 +38,7 @@ interface PostStatusBadgeProps {
 
 export function PostStatusBadge({ status, showDot = false }: PostStatusBadgeProps) {
   return (
-    <span
+    <Badge
       className={cn(
         "inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide",
         STATUS_STYLES[status],
@@ -45,7 +46,7 @@ export function PostStatusBadge({ status, showDot = false }: PostStatusBadgeProp
     >
       {showDot ? <span className={cn("size-1.5 rounded-full", STATUS_DOT_STYLES[status])} /> : null}
       {STATUS_LABELS[status]}
-    </span>
+    </Badge>
   );
 }
 

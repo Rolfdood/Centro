@@ -4,6 +4,8 @@ import { Bot, PencilLine, RefreshCw } from "lucide-react";
 
 import { PlatformIcon } from "@/components/features/accounts/PlatformIcon";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   getConstraints,
   getMediaRequirementMessage,
@@ -62,10 +64,10 @@ export function PlatformVariantCard({
         </div>
         <div className="flex items-center gap-1">
           {variant.isAiGenerated ? (
-            <span className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+            <Badge variant="secondary" className="gap-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
               <Bot className="size-3" />
               AI
-            </span>
+            </Badge>
           ) : null}
           <Button
             type="button"
@@ -87,9 +89,9 @@ export function PlatformVariantCard({
           role="status"
           aria-label={`Generating ${variant.platform} variant`}
         >
-          <div className="h-5 w-11/12 animate-pulse rounded bg-muted" />
-          <div className="h-5 w-full animate-pulse rounded bg-muted" />
-          <div className="h-5 w-4/5 animate-pulse rounded bg-muted" />
+          <Skeleton className="h-5 w-11/12" />
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-4/5" />
           <span className="sr-only">Generating AI suggestion…</span>
         </div>
       ) : (
