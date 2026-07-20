@@ -238,21 +238,21 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
         >
           <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1 sm:w-auto" aria-label="Post filters">
             {FILTERS.map((filter) => {
-            const count = posts.filter((post) => matchesFilter(post, filter.id)).length;
+              const count = posts.filter((post) => matchesFilter(post, filter.id)).length;
 
-            return (
-              <TabsTrigger
-                key={filter.id}
-                className={cn(
-                  "shrink-0 px-3 py-1.5",
-                  filter.id === "FAILED" ? "data-[state=inactive]:hover:text-destructive" : "",
-                )}
-                value={filter.id}
-              >
-                {filter.label}
-                <span className="ml-1 font-mono text-xs text-muted-foreground">{count}</span>
-              </TabsTrigger>
-            );
+              return (
+                <TabsTrigger
+                  key={filter.id}
+                  className={cn(
+                    "shrink-0 px-3 py-1.5",
+                    filter.id === "FAILED" ? "data-[state=inactive]:hover:text-destructive" : "",
+                  )}
+                  value={filter.id}
+                >
+                  {filter.label}
+                  <span className="ml-1 font-mono text-xs text-muted-foreground">{count}</span>
+                </TabsTrigger>
+              );
             })}
           </TabsList>
         </Tabs>
