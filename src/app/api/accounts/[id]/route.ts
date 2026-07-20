@@ -1,10 +1,12 @@
 import { getAuthenticatedUser } from "@/lib/auth";
-import { createAccountRouteHandlers } from "@/lib/accounts/route-handlers";
-import { db } from "@/lib/db";
+import {
+  createAccountRouteHandlers,
+  disconnectAccountForUser,
+} from "@/lib/accounts/route-handlers";
 
 const handlers = createAccountRouteHandlers({
   getAuthenticatedUser,
-  socialAccounts: db.socialAccount,
+  disconnectAccount: disconnectAccountForUser,
 });
 
 export const { DELETE } = handlers;

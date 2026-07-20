@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { getAuthenticatedUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { derivePostStatus } from "@/lib/posts/status";
 import {
   accountIdParamsSchema,
   connectAccountSchema,
@@ -24,21 +25,43 @@ export interface AccountsRouteDependencies {
   createMockAccessToken: () => string;
 }
 
+type DisconnectAccountResult = {
+  scheduledTargetCount: number;
+};
+
+type DisconnectTransaction = {
+  socialAccount: Pick<typeof db.socialAccount, "findFirst" | "delete">;
+  postTarget: Pick<typeof db.postTarget, "updateMany" | "findMany">;
+  post: Pick<typeof db.post, "update">;
+};
+
+export interface DisconnectAccountDependencies {
+  transact: <Result>(
+    operation: (transaction: DisconnectTransaction) => Promise<Result>,
+  ) => Promise<Result>;
+}
+
 export interface AccountRouteDependencies {
   getAuthenticatedUser: typeof getAuthenticatedUser;
-  socialAccounts: Pick<typeof db.socialAccount, "findFirst" | "delete">;
+  disconnectAccount: (
+    accountId: string,
+    userId: string,
+  ) => Promise<DisconnectAccountResult | null>;
 }
 
 function unauthorizedResponse(): NextResponse {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-function toSocialAccountDto(account: SocialAccount) {
+function toSocialAccountDto(
+  account: SocialAccount & { _count?: { targets: number } },
+) {
   return socialAccountDtoSchema.parse({
     id: account.id,
     platform: account.platform,
     handle: account.handle,
     status: account.status,
+    scheduledTargetCount: account._count?.targets ?? 0,
   });
 }
 
@@ -73,6 +96,13 @@ export function createAccountsRouteHandlers(dependencies: AccountsRouteDependenc
       const accounts = await socialAccounts.findMany({
         where: { userId: authentication.userId },
         orderBy: [{ platform: "asc" }, { handle: "asc" }],
+        include: {
+          _count: {
+            select: {
+              targets: { where: { status: "SCHEDULED" } },
+            },
+          },
+        },
       });
 
       return NextResponse.json(
@@ -143,7 +173,7 @@ export function createAccountsRouteHandlers(dependencies: AccountsRouteDependenc
 }
 
 export function createAccountRouteHandlers(dependencies: AccountRouteDependencies) {
-  const { getAuthenticatedUser, socialAccounts } = dependencies;
+  const { disconnectAccount, getAuthenticatedUser } = dependencies;
 
   async function DELETE(
     _request: Request,
@@ -159,54 +189,18 @@ export function createAccountRouteHandlers(dependencies: AccountRouteDependencie
       return invalidRequestResponse(accountParams.error);
     }
 
-    let account: { id: string; targets: { id: string }[] } | null;
     try {
-      account = await socialAccounts.findFirst({
-        where: {
-          id: accountParams.data.id,
-          userId: authentication.userId,
-        },
-        select: {
-          id: true,
-          targets: {
-            select: { id: true },
-            take: 1,
-          },
-        },
-      });
-    } catch {
-      return NextResponse.json(
-        { error: "Unable to disconnect account." },
-        { status: 500 },
+      const account = await disconnectAccount(
+        accountParams.data.id,
+        authentication.userId,
       );
-    }
 
-    if (!account) {
-      return NextResponse.json({ error: "Account not found." }, { status: 404 });
-    }
-
-    // Scheduling will replace this guard with target cancellation in a later phase.
-    if (account.targets.length > 0) {
-      return NextResponse.json(
-        { error: "This account cannot be disconnected because it has post history." },
-        { status: 409 },
-      );
-    }
-
-    try {
-      await socialAccounts.delete({ where: { id: account.id } });
-      return new NextResponse(null, { status: 204 });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2003"
-      ) {
-        return NextResponse.json(
-          { error: "This account cannot be disconnected because it has post history." },
-          { status: 409 },
-        );
+      if (!account) {
+        return NextResponse.json({ error: "Account not found." }, { status: 404 });
       }
 
+      return new NextResponse(null, { status: 204 });
+    } catch {
       return NextResponse.json(
         { error: "Unable to disconnect account." },
         { status: 500 },
@@ -216,3 +210,67 @@ export function createAccountRouteHandlers(dependencies: AccountRouteDependencie
 
   return { DELETE };
 }
+
+export function createDisconnectAccountForUser(
+  dependencies: DisconnectAccountDependencies,
+) {
+  return async function disconnectAccountForUser(
+    accountId: string,
+    userId: string,
+  ): Promise<DisconnectAccountResult | null> {
+    return dependencies.transact(async (transaction) => {
+      const account = await transaction.socialAccount.findFirst({
+        where: { id: accountId, userId },
+        select: {
+          id: true,
+          targets: {
+            select: {
+              postId: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      if (!account) return null;
+
+      const scheduledTargets = account.targets.filter(
+        (target) => target.status === "SCHEDULED",
+      );
+      const affectedPostIds = Array.from(
+        new Set(account.targets.map((target) => target.postId)),
+      );
+      if (scheduledTargets.length > 0) {
+        await transaction.postTarget.updateMany({
+          where: {
+            accountId: account.id,
+            status: "SCHEDULED",
+          },
+          data: {
+            status: "CANCELLED",
+            error: "Cancelled because its account was disconnected.",
+          },
+        });
+      }
+
+      await transaction.socialAccount.delete({ where: { id: account.id } });
+
+      for (const postId of affectedPostIds) {
+        const targets = await transaction.postTarget.findMany({
+          where: { postId },
+          select: { status: true },
+        });
+        await transaction.post.update({
+          where: { id: postId },
+          data: { status: derivePostStatus(targets) },
+        });
+      }
+
+      return { scheduledTargetCount: scheduledTargets.length };
+    });
+  };
+}
+
+export const disconnectAccountForUser = createDisconnectAccountForUser({
+  transact: (operation) => db.$transaction(operation),
+});

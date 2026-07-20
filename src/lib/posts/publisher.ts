@@ -3,6 +3,9 @@ import { getPlatformAdapter } from "@/lib/platforms/registry";
 import type { Platform } from "@/lib/platforms/constraints";
 import type { PublishResult, SocialPlatformAdapter } from "@/lib/platforms/types";
 import { postWithRelationsInclude, type PostWithRelations } from "@/lib/posts";
+import { derivePostStatus } from "@/lib/posts/status";
+
+export { derivePostStatus } from "@/lib/posts/status";
 
 const publishInclude = {
   targets: {
@@ -18,12 +21,12 @@ type PublishablePost = {
   idempotencyKey: string;
   targets: Array<{
     id: string;
-    accountId: string;
+    accountId: string | null;
     platform: Platform;
     adaptedText: string;
     status: TargetStatus;
     attempts: number;
-    account: SocialAccount;
+    account: SocialAccount | null;
   }>;
   media: MediaAsset[];
 };
@@ -39,16 +42,6 @@ export interface PublisherDependencies {
   markAccountReconnectRequired: (accountId: string) => Promise<void>;
   getAdapter?: (platform: Platform) => SocialPlatformAdapter;
   now?: () => Date;
-}
-
-export function derivePostStatus(targets: ReadonlyArray<{ status: TargetStatus }>): PostStatus {
-  if (targets.some((target) => target.status === "PUBLISHING")) return "PUBLISHING";
-  if (targets.some((target) => target.status === "DRAFT")) return "DRAFT";
-  if (targets.some((target) => target.status === "SCHEDULED")) return "SCHEDULED";
-  if (targets.length > 0 && targets.every((target) => target.status === "PUBLISHED")) return "PUBLISHED";
-  if (targets.some((target) => target.status === "PUBLISHED")) return "PARTIALLY_FAILED";
-  if (targets.length > 0) return "FAILED";
-  return "DRAFT";
 }
 
 export function safePublishError(
@@ -76,6 +69,14 @@ export function createPublisher(dependencies: PublisherDependencies) {
 
     for (const target of pendingTargets) {
       await dependencies.markTargetPublishing(target.id);
+      if (!target.account || !target.accountId) {
+        await dependencies.markTargetFailed(
+          target.id,
+          `The ${target.platform} account was disconnected.`,
+        );
+        continue;
+      }
+
       const adapter = getAdapter(target.platform);
 
       try {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type { MediaAsset, PostStatus, SocialAccount, TargetStatus } from "@prisma/client";
-import { createPublisher, derivePostStatus } from "@/lib/posts/publisher";
+import { createPublisher } from "@/lib/posts/publisher";
+import { derivePostStatus } from "@/lib/posts/status";
 import type { PostWithRelations } from "@/lib/posts";
 import type { Platform } from "@/lib/platforms/constraints";
 import type { PublishInput, SocialPlatformAdapter } from "@/lib/platforms/types";

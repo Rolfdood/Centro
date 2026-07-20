@@ -26,6 +26,7 @@ export const socialAccountDtoSchema = z.object({
   platform: z.enum(PLATFORMS),
   handle: z.string(),
   status: z.enum(accountStatuses),
+  scheduledTargetCount: z.number().int().nonnegative().default(0),
 }).strict();
 
 export const mediaAssetDtoSchema = z.object({
@@ -40,7 +41,7 @@ export const mediaAssetDtoSchema = z.object({
 
 export const postTargetDtoSchema = z.object({
   id: z.string(),
-  accountId: z.string(),
+  accountId: z.string().nullable(),
   platform: z.enum(PLATFORMS),
   adaptedText: z.string(),
   status: z.enum(targetStatuses),
@@ -49,7 +50,7 @@ export const postTargetDtoSchema = z.object({
   publishedUrl: z.string().nullable(),
   error: z.string().nullable(),
   attempts: z.number().int().nonnegative(),
-  account: socialAccountDtoSchema,
+  account: socialAccountDtoSchema.nullable(),
 }).strict();
 
 export const postTargetSummaryDtoSchema = postTargetDtoSchema.pick({
