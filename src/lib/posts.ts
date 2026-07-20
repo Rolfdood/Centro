@@ -53,6 +53,7 @@ function toTargetDto(
           platform: target.account.platform,
           handle: target.account.handle,
           status: target.account.status,
+          // This relation is loaded without the account target-count aggregate.
           scheduledTargetCount: 0,
         }
       : null,
