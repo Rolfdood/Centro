@@ -16,3 +16,5 @@ export {
   type AdaptPostInput,
   type AdaptPostResult,
 } from "./ai";
+export { uploadMedia } from "./uploads";
+export { ApiError } from "./client";

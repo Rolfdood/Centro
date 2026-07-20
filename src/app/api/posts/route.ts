@@ -30,6 +30,9 @@ const handlers = createPostsRouteHandlers({
           status: "DRAFT",
           idempotencyKey: input.idempotencyKey,
           targets: { create: input.targets },
+          media: {
+            create: input.media.map(({ mimeType: _mimeType, ...media }) => media),
+          },
         },
         include: postWithRelationsInclude,
       }),

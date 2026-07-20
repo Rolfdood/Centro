@@ -1,83 +1,79 @@
 "use client";
 
 import { ImagePlus, Trash2, Upload } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ApiError, uploadMedia } from "@/lib/api";
 import type { ComposerMedia } from "@/stores/composerStore";
 
 interface MediaUploaderProps {
   media: ComposerMedia[];
   onChange: (media: ComposerMedia[]) => void;
+  onUploadingChange: (isUploading: boolean) => void;
 }
 
-export function MediaUploader({ media, onChange }: MediaUploaderProps) {
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const ACCEPTED_MEDIA_TYPES = new Set([
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "video/mp4",
+  "video/webm",
+]);
+
+export function MediaUploader({
+  media,
+  onChange,
+  onUploadingChange,
+}: MediaUploaderProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const objectUrls = useRef(new Set<string>());
   const [fileError, setFileError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
-    const activeUrls = new Set(
-      media
-        .filter((item) => item.url.startsWith("blob:"))
-        .map((item) => item.url),
-    );
-
-    objectUrls.current.forEach((url) => {
-      if (!activeUrls.has(url)) {
-        URL.revokeObjectURL(url);
-        objectUrls.current.delete(url);
-      }
-    });
-  }, [media]);
-
-  useEffect(() => {
-    const urlsToRevoke = objectUrls.current;
-
-    return () => {
-      urlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
-      urlsToRevoke.clear();
-    };
-  }, []);
-
-  function addFiles(files: FileList | null): void {
+  async function addFiles(files: FileList | null): Promise<void> {
     if (!files) {
       return;
     }
 
     const selectedFiles = Array.from(files);
     const acceptedFiles = selectedFiles.filter(
-      (file) => file.type.startsWith("image/") || file.type.startsWith("video/"),
+      (file) => ACCEPTED_MEDIA_TYPES.has(file.type) && file.size <= MAX_UPLOAD_BYTES,
     );
     setFileError(
       acceptedFiles.length === selectedFiles.length
         ? null
-        : "Only images and video are supported.",
+        : "Use a supported image or video file that is 25 MB or smaller.",
     );
 
-    const additions = acceptedFiles.map<ComposerMedia>((file) => {
-      const url = URL.createObjectURL(file);
-      objectUrls.current.add(url);
+    if (acceptedFiles.length === 0) {
+      return;
+    }
 
-      return {
+    setIsUploading(true);
+    onUploadingChange(true);
+    try {
+      const uploads = await Promise.all(acceptedFiles.map(uploadMedia));
+      const additions = uploads.map<ComposerMedia>((upload) => ({
         id: crypto.randomUUID(),
-        url,
-        type: file.type.startsWith("video/") ? "VIDEO" : "IMAGE",
-        sizeBytes: file.size,
-        mimeType: file.type,
-      };
-    });
-
-    onChange([...media, ...additions]);
+        ...upload,
+      }));
+      onChange([...media, ...additions]);
+    } catch (error) {
+      setFileError(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to upload media. Please try again.",
+      );
+    } finally {
+      setIsUploading(false);
+      onUploadingChange(false);
+    }
   }
 
   function removeMedia(mediaId: string): void {
-    const item = media.find((candidate) => candidate.id === mediaId);
-    if (item?.url.startsWith("blob:")) {
-      URL.revokeObjectURL(item.url);
-      objectUrls.current.delete(item.url);
-    }
     onChange(media.filter((item) => item.id !== mediaId));
   }
 
@@ -89,7 +85,7 @@ export function MediaUploader({ media, onChange }: MediaUploaderProps) {
             Media
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Add local images or video to validate platform requirements. Uploading happens when publishing is available.
+            Upload images or video to include with your post. Platform requirements are checked before publishing.
           </p>
         </div>
         {fileError ? (
@@ -101,7 +97,7 @@ export function MediaUploader({ media, onChange }: MediaUploaderProps) {
           ref={inputRef}
           id={inputId}
           type="file"
-          accept="image/*,video/*"
+          accept="image/gif,image/jpeg,image/png,image/webp,video/mp4,video/webm"
           multiple
           className="sr-only"
           onChange={(event) => {
@@ -109,9 +105,9 @@ export function MediaUploader({ media, onChange }: MediaUploaderProps) {
             event.target.value = "";
           }}
         />
-        <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+        <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={isUploading}>
           <Upload className="mr-2" />
-          Add media
+          {isUploading ? "Uploading…" : "Add media"}
         </Button>
       </div>
 
@@ -119,6 +115,7 @@ export function MediaUploader({ media, onChange }: MediaUploaderProps) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
+          disabled={isUploading}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border px-4 py-6 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
         >
           <ImagePlus className="size-4" />
@@ -131,7 +128,7 @@ export function MediaUploader({ media, onChange }: MediaUploaderProps) {
               {item.type === "VIDEO" ? (
                 <video className="aspect-square w-full object-cover" src={item.url} muted />
               ) : (
-                // eslint-disable-next-line @next/next/no-img-element -- local previews use object URLs before uploads exist.
+                // eslint-disable-next-line @next/next/no-img-element -- uploaded media previews use their API URL.
                 <img className="aspect-square w-full object-cover" src={item.url} alt="Selected media preview" />
               )}
               <div className="flex items-center justify-between gap-2 border-t border-border px-2 py-1.5">

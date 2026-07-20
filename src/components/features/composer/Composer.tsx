@@ -22,6 +22,7 @@ export function Composer() {
   const publishPost = usePublishPost();
   const [publishError, setPublishError] = useState<string | null>(null);
   const [isPublishSubmitted, setIsPublishSubmitted] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const publishRequestedRef = useRef(false);
   const baseText = useComposerStore((state) => state.baseText);
   const selectedAccountIds = useComposerStore(
@@ -102,6 +103,7 @@ export function Composer() {
         media: media.map((asset, index) => ({
           url: asset.url,
           type: asset.type,
+          mimeType: asset.mimeType,
           sizeBytes: asset.sizeBytes,
           width: asset.width ?? null,
           height: asset.height ?? null,
@@ -170,7 +172,11 @@ export function Composer() {
 
         <BaseTextArea value={baseText} onChange={setBaseText} />
 
-        <MediaUploader media={media} onChange={setMedia} />
+        <MediaUploader
+          media={media}
+          onChange={setMedia}
+          onUploadingChange={setIsUploadingMedia}
+        />
 
         <AiAdaptPanel
           baseText={baseText}
@@ -210,6 +216,7 @@ export function Composer() {
         selectedCount={selectedAccountIds.length}
         isValid={variantsAreValid}
         isPublishing={isPublishing}
+        isUploading={isUploadingMedia}
         publishError={publishError}
         onInvalidAttempt={scrollToFirstInvalidVariant}
         onPublish={handlePublish}

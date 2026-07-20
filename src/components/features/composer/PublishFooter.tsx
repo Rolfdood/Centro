@@ -8,6 +8,7 @@ interface PublishFooterProps {
   selectedCount: number;
   isValid: boolean;
   isPublishing: boolean;
+  isUploading: boolean;
   publishError: string | null;
   onInvalidAttempt: () => void;
   onPublish: () => void;
@@ -17,12 +18,13 @@ export function PublishFooter({
   selectedCount,
   isValid,
   isPublishing,
+  isUploading,
   publishError,
   onInvalidAttempt,
   onPublish,
 }: PublishFooterProps) {
   const hasSelectedPlatforms = selectedCount > 0;
-  const canPublish = hasSelectedPlatforms && isValid;
+  const canPublish = hasSelectedPlatforms && isValid && !isUploading;
 
   return (
     <footer className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
@@ -47,6 +49,11 @@ export function PublishFooter({
                 Review errors
               </button>
             </div>
+          ) : null}
+          {isUploading ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Media upload in progress.
+            </p>
           ) : null}
           {publishError ? (
             <p className="mt-1 text-xs text-destructive" role="alert">
@@ -77,6 +84,8 @@ export function PublishFooter({
             title={
               canPublish
                 ? "Publish this post now"
+                : isUploading
+                  ? "Wait for the media upload to finish"
                 : hasSelectedPlatforms
                   ? "Fix validation errors before publishing"
                   : "Select at least one platform first"
