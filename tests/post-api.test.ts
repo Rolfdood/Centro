@@ -6,6 +6,7 @@ import {
 } from "../src/lib/posts/route-handlers";
 import type { PostWithRelations } from "../src/lib/posts";
 import type { MediaInput } from "../src/lib/validations/post";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_SIZE_MESSAGE } from "../src/lib/validations/upload";
 
 const userId = "user-1";
 const key = "123e4567-e89b-12d3-a456-426614174000";
@@ -120,6 +121,16 @@ async function run(): Promise<void> {
   const repeated = await handlers.POST(request(key, media));
   assert.equal(repeated.status, 200);
   assert.equal((await repeated.json()).post.id, "post-1");
+
+  const oversizedMedia: MediaInput[] = [{
+    ...media[0],
+    sizeBytes: MAX_UPLOAD_BYTES + 1,
+  }];
+  const oversized = await handlers.POST(
+    request("123e4567-e89b-12d3-a456-426614174003", oversizedMedia),
+  );
+  assert.equal(oversized.status, 400);
+  assert.deepEqual((await oversized.json()).fieldErrors.media, [MAX_UPLOAD_SIZE_MESSAGE]);
 
   posts.set(
     "123e4567-e89b-12d3-a456-426614174001",

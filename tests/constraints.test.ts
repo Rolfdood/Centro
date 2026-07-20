@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import {
   getMediaRequirementMessage,
   hasRequiredMedia,
+  PLATFORM_CONSTRAINTS,
   validatePost,
 } from "../src/lib/platforms/constraints";
+import {
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_SIZE_MESSAGE,
+} from "../src/lib/validations/upload";
 
 const image = { type: "IMAGE" as const, mimeType: "image/jpeg", sizeBytes: 1024 };
 
@@ -44,12 +49,29 @@ const xWithOversizedMedia = validatePost("X", "Oversized media", [
   {
     type: "VIDEO",
     mimeType: "video/mp4",
-    sizeBytes: 512 * 1024 * 1024 + 1,
+    sizeBytes: MAX_UPLOAD_BYTES + 1,
   },
 ]);
 assert.deepEqual(xWithOversizedMedia.errors, [
-  "File exceeds X size limit of 512 MB",
+  MAX_UPLOAD_SIZE_MESSAGE,
 ]);
+
+const xFileLimit = PLATFORM_CONSTRAINTS.X.maxFileSizeMB;
+PLATFORM_CONSTRAINTS.X.maxFileSizeMB = 1;
+try {
+  const xWithPlatformOversizedMedia = validatePost("X", "Oversized media", [
+    {
+      type: "VIDEO",
+      mimeType: "video/mp4",
+      sizeBytes: 1024 * 1024 + 1,
+    },
+  ]);
+  assert.deepEqual(xWithPlatformOversizedMedia.errors, [
+    "File exceeds X size limit of 1 MB",
+  ]);
+} finally {
+  PLATFORM_CONSTRAINTS.X.maxFileSizeMB = xFileLimit;
+}
 
 const tiktokWithVideo = validatePost("TIKTOK", "Video update", [
   { type: "VIDEO", mimeType: "video/mp4", sizeBytes: 1024 },

@@ -5,6 +5,10 @@ import { useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ApiError, uploadMedia } from "@/lib/api";
+import {
+  isWithinUploadSizeLimit,
+  MAX_UPLOAD_SIZE_MESSAGE,
+} from "@/lib/validations/upload";
 import type { ComposerMedia } from "@/stores/composerStore";
 
 interface MediaUploaderProps {
@@ -13,7 +17,6 @@ interface MediaUploaderProps {
   onUploadingChange: (isUploading: boolean) => void;
 }
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const ACCEPTED_MEDIA_TYPES = new Set([
   "image/gif",
   "image/jpeg",
@@ -40,13 +43,19 @@ export function MediaUploader({
 
     const selectedFiles = Array.from(files);
     const acceptedFiles = selectedFiles.filter(
-      (file) => ACCEPTED_MEDIA_TYPES.has(file.type) && file.size <= MAX_UPLOAD_BYTES,
+      (file) => ACCEPTED_MEDIA_TYPES.has(file.type) && isWithinUploadSizeLimit(file.size),
     );
-    setFileError(
-      acceptedFiles.length === selectedFiles.length
-        ? null
-        : "Use a supported image or video file that is 25 MB or smaller.",
+    const hasOversizedFile = selectedFiles.some(
+      (file) => !isWithinUploadSizeLimit(file.size),
     );
+    const hasUnsupportedFile = selectedFiles.some(
+      (file) => !ACCEPTED_MEDIA_TYPES.has(file.type),
+    );
+    setFileError(hasOversizedFile
+      ? MAX_UPLOAD_SIZE_MESSAGE
+      : hasUnsupportedFile
+        ? "Use a supported image or video file."
+        : null);
 
     if (acceptedFiles.length === 0) {
       return;
