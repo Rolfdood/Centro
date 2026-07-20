@@ -15,4 +15,4 @@ export {
   useAdaptPost,
   type AdaptPostInput,
   type AdaptPostResult,
-} from "./stubs";
+} from "./ai";
