@@ -47,12 +47,15 @@ function toTargetDto(
     publishedUrl: target.publishedUrl,
     error: target.error,
     attempts: target.attempts,
-    account: {
-      id: target.account.id,
-      platform: target.account.platform,
-      handle: target.account.handle,
-      status: target.account.status,
-    },
+    account: target.account
+      ? {
+          id: target.account.id,
+          platform: target.account.platform,
+          handle: target.account.handle,
+          status: target.account.status,
+          scheduledTargetCount: 0,
+        }
+      : null,
   };
 }
 

@@ -115,31 +115,71 @@ async function run(): Promise<void> {
   assert.equal(invalidResponse.status, 400);
   assert.ok((await invalidResponse.json()).fieldErrors.platform);
 
+  const publishedOnlyAccountId = "cly8kq9f10004abcd12345678";
+  const mixedAccountId = "cly8kq9f10005abcd12345678";
   let cancellation: { status: string; error: string } | null = null;
-  let accountDeleted = false;
-  const postStatuses: string[] = [];
+  const disconnectedAccountIds: string[] = [];
+  const targets: Array<{
+    accountId: string | null;
+    postId: string;
+    status: "SCHEDULED" | "PUBLISHED" | "CANCELLED";
+  }> = [
+    { accountId: accountWithTargetsId, postId: "post-scheduled", status: "SCHEDULED" },
+    { accountId: publishedOnlyAccountId, postId: "post-published", status: "PUBLISHED" },
+    { accountId: mixedAccountId, postId: "post-mixed", status: "SCHEDULED" },
+    { accountId: "connected-account", postId: "post-mixed", status: "PUBLISHED" },
+  ];
+  const postStatuses = new Map<string, string>();
   const disconnectScheduledAccount = createDisconnectAccountForUser({
     transact: async (operation) =>
       operation({
         socialAccount: {
-          findFirst: async () => ({
-            id: accountWithTargetsId,
-            targets: [{ postId: "post-scheduled", status: "SCHEDULED" }],
-          }),
-          delete: async () => {
-            accountDeleted = true;
+          findFirst: async ({ where }: { where: { id: string; userId: string } }) => {
+            if (where.userId !== userId) return null;
+
+            return {
+              id: where.id,
+              targets: targets
+                .filter((target) => target.accountId === where.id)
+                .map(({ postId, status }) => ({ postId, status })),
+            };
+          },
+          delete: async ({ where }: { where: { id: string } }) => {
+            disconnectedAccountIds.push(where.id);
+            targets.forEach((target) => {
+              if (target.accountId === where.id) target.accountId = null;
+            });
           },
         },
         postTarget: {
-          updateMany: async ({ data }: { data: { status: string; error: string } }) => {
+          updateMany: async ({
+            where,
+            data,
+          }: {
+            where: { accountId: string; status: string };
+            data: { status: string; error: string };
+          }) => {
             cancellation = data;
+            targets.forEach((target) => {
+              if (target.accountId === where.accountId && target.status === where.status) {
+                target.status = "CANCELLED";
+              }
+            });
           },
-          deleteMany: async () => ({ count: 1 }),
-          findMany: async () => [],
+          findMany: async ({ where }: { where: { postId: string } }) =>
+            targets
+              .filter((target) => target.postId === where.postId)
+              .map(({ status }) => ({ status })),
         },
         post: {
-          update: async ({ data }: { data: { status: string } }) => {
-            postStatuses.push(data.status);
+          update: async ({
+            where,
+            data,
+          }: {
+            where: { id: string };
+            data: { status: string };
+          }) => {
+            postStatuses.set(where.id, data.status);
           },
         },
       } as unknown as Parameters<typeof operation>[0]),
@@ -152,14 +192,27 @@ async function run(): Promise<void> {
     status: "CANCELLED",
     error: "Cancelled because its account was disconnected.",
   });
-  assert.equal(accountDeleted, true);
-  assert.deepEqual(postStatuses, ["FAILED"]);
+  assert.deepEqual(disconnectedAccountIds, [accountWithTargetsId]);
+  assert.equal(postStatuses.get("post-scheduled"), "FAILED");
+  assert.equal(targets.find((target) => target.postId === "post-scheduled")?.status, "CANCELLED");
 
-  const disconnectedAccountIds: string[] = [];
+  assert.deepEqual(
+    await disconnectScheduledAccount(publishedOnlyAccountId, userId),
+    { scheduledTargetCount: 0 },
+  );
+  assert.equal(postStatuses.get("post-published"), "PUBLISHED");
+
+  assert.deepEqual(
+    await disconnectScheduledAccount(mixedAccountId, userId),
+    { scheduledTargetCount: 1 },
+  );
+  assert.equal(postStatuses.get("post-mixed"), "PARTIALLY_FAILED");
+
+  const deleteHandlerAccountIds: string[] = [];
   const disconnectDependencies: AccountRouteDependencies = {
     getAuthenticatedUser: authenticatedUser(),
     disconnectAccount: async (accountId) => {
-      disconnectedAccountIds.push(accountId);
+      deleteHandlerAccountIds.push(accountId);
       if (accountId === missingAccountId) return null;
 
       return {
@@ -191,7 +244,7 @@ async function run(): Promise<void> {
     params: { id: accountWithTargetsId },
   });
   assert.equal(scheduledTargetResponse.status, 204);
-  assert.deepEqual(disconnectedAccountIds, [missingAccountId, accountWithTargetsId]);
+  assert.deepEqual(deleteHandlerAccountIds, [missingAccountId, accountWithTargetsId]);
 
   const deleteResponse = await disconnectHandlers.DELETE(new Request("http://localhost"), {
     params: { id: removableAccountId },

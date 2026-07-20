@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { getAuthenticatedUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { derivePostStatus } from "@/lib/posts/publisher";
+import { derivePostStatus } from "@/lib/posts/status";
 import {
   accountIdParamsSchema,
   connectAccountSchema,
@@ -31,7 +31,7 @@ type DisconnectAccountResult = {
 
 type DisconnectTransaction = {
   socialAccount: Pick<typeof db.socialAccount, "findFirst" | "delete">;
-  postTarget: Pick<typeof db.postTarget, "updateMany" | "deleteMany" | "findMany">;
+  postTarget: Pick<typeof db.postTarget, "updateMany" | "findMany">;
   post: Pick<typeof db.post, "update">;
 };
 
@@ -240,10 +240,6 @@ export function createDisconnectAccountForUser(
       const affectedPostIds = Array.from(
         new Set(account.targets.map((target) => target.postId)),
       );
-      const postsWithCancelledTargets = new Set(
-        scheduledTargets.map((target) => target.postId),
-      );
-
       if (scheduledTargets.length > 0) {
         await transaction.postTarget.updateMany({
           where: {
@@ -257,25 +253,18 @@ export function createDisconnectAccountForUser(
         });
       }
 
-      await transaction.postTarget.deleteMany({ where: { accountId: account.id } });
+      await transaction.socialAccount.delete({ where: { id: account.id } });
 
       for (const postId of affectedPostIds) {
         const targets = await transaction.postTarget.findMany({
           where: { postId },
           select: { status: true },
         });
-        const status =
-          targets.length === 0 && postsWithCancelledTargets.has(postId)
-            ? "FAILED"
-            : derivePostStatus(targets);
-
         await transaction.post.update({
           where: { id: postId },
-          data: { status },
+          data: { status: derivePostStatus(targets) },
         });
       }
-
-      await transaction.socialAccount.delete({ where: { id: account.id } });
 
       return { scheduledTargetCount: scheduledTargets.length };
     });

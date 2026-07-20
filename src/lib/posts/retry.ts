@@ -3,7 +3,8 @@ import { getPlatformAdapter } from "@/lib/platforms/registry";
 import type { Platform } from "@/lib/platforms/constraints";
 import type { SocialPlatformAdapter } from "@/lib/platforms/types";
 import { postWithRelationsInclude, type PostWithRelations } from "@/lib/posts";
-import { derivePostStatus, safePublishError } from "@/lib/posts/publisher";
+import { safePublishError } from "@/lib/posts/publisher";
+import { derivePostStatus } from "@/lib/posts/status";
 
 type RetryablePost = {
   id: string;
@@ -12,12 +13,12 @@ type RetryablePost = {
   media: MediaAsset[];
   targets: Array<{
     id: string;
-    accountId: string;
+    accountId: string | null;
     platform: Platform;
     adaptedText: string;
     status: TargetStatus;
     attempts: number;
-    account: SocialAccount;
+    account: SocialAccount | null;
   }>;
 };
 
@@ -43,6 +44,14 @@ export function createRetryPublisher(dependencies: RetryPublisherDependencies) {
     const now = dependencies.now ?? (() => new Date());
 
     for (const target of retryTargets) {
+      if (!target.account || !target.accountId) {
+        await dependencies.markTargetFailed(
+          target.id,
+          `The ${target.platform} account was disconnected.`,
+        );
+        continue;
+      }
+
       const adapter = getAdapter(target.platform);
       try {
         const auth = await adapter.checkAuth(target.account);

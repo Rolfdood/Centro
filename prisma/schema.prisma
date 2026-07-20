@@ -125,8 +125,8 @@ model PostTarget {
   id           String             @id @default(cuid())
   postId       String
   post         Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
-  accountId    String
-  account      SocialAccount      @relation(fields: [accountId], references: [id])
+  accountId    String?
+  account      SocialAccount?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
   platform     Platform
   adaptedText  String
   status       TargetStatus       @default(DRAFT)
