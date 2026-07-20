@@ -12,6 +12,7 @@ export {
   type PostActionInput,
 } from "./posts";
 export {
+  useAiAdaptationQuota,
   useAdaptPost,
   type AdaptPostInput,
   type AdaptPostResult,

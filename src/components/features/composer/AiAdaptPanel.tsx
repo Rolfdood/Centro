@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAdaptPost } from "@/lib/api";
+import { useAiAdaptationQuota, useAdaptPost } from "@/lib/api";
 import { requiresAiRegenerationConfirmation } from "@/stores/composerStore";
 import type {
   ComposerMedia,
@@ -47,6 +47,7 @@ export function AiAdaptPanel({
   children,
 }: AiAdaptPanelProps) {
   const adaptPost = useAdaptPost();
+  const aiQuota = useAiAdaptationQuota();
   const adaptingRef = useRef(false);
   const [pendingRegeneration, setPendingRegeneration] =
     useState<ComposerVariant | null>(null);
@@ -54,11 +55,25 @@ export function AiAdaptPanel({
     ReadonlySet<string>
   >(new Set());
   const [hasAdaptationError, setHasAdaptationError] = useState(false);
+  const [latestQuota, setLatestQuota] = useState<{
+    limit: number;
+    remaining: number;
+  } | null>(null);
+  const quota = latestQuota ?? aiQuota.data?.quota;
+  const quotaReached = quota?.remaining === 0;
+  const requestedGenerationCount = new Set(
+    variants.map((variant) => variant.platform),
+  ).size;
+  const quotaCannotAdapt =
+    quota !== undefined && quota.remaining < requestedGenerationCount;
   const canAdapt =
     baseText.trim().length > 0 &&
     variants.length > 0 &&
     !adaptPost.isPending &&
-    !adaptingRef.current;
+    !adaptingRef.current &&
+    !aiQuota.isLoading &&
+    !aiQuota.isError &&
+    !quotaCannotAdapt;
 
   async function adaptVariants(variantsToAdapt: ComposerVariant[]) {
     if (
@@ -87,6 +102,10 @@ export function AiAdaptPanel({
           hasVideo: media.some((item) => item.type === "VIDEO"),
         },
       });
+      setLatestQuota({
+        limit: result.quota.limit,
+        remaining: result.quota.remaining,
+      });
 
       const generatedByPlatform = new Map(
         result.variants.map((variant) => [variant.platform, variant]),
@@ -109,6 +128,7 @@ export function AiAdaptPanel({
       }
     } catch {
       setHasAdaptationError(true);
+      void aiQuota.refetch();
     } finally {
       adaptingRef.current = false;
       setGeneratingAccountIds(new Set());
@@ -116,7 +136,7 @@ export function AiAdaptPanel({
   }
 
   function requestRegeneration(variant: ComposerVariant) {
-    if (adaptPost.isPending || adaptingRef.current) {
+    if (adaptPost.isPending || adaptingRef.current || quotaReached) {
       return;
     }
 
@@ -169,21 +189,49 @@ export function AiAdaptPanel({
               ? `Generate suggestions for ${variants.length} selected ${variants.length === 1 ? "platform" : "platforms"}.`
               : "Select a platform to generate a suggestion."}
           </p>
-          <Button
-            type="button"
-            onClick={() => void adaptVariants(variants)}
-            disabled={!canAdapt}
-            aria-describedby="ai-adaptation-help"
-            className="w-full sm:w-auto"
-          >
-            {adaptPost.isPending ? (
-              <LoaderCircle className="mr-2 animate-spin" aria-hidden="true" />
-            ) : (
-              <Sparkles className="mr-2" aria-hidden="true" />
-            )}
-            {adaptPost.isPending ? "Adapting with AI" : "Adapt with AI"}
-          </Button>
+          <div className="w-full space-y-1 sm:w-auto sm:text-right">
+            <Button
+              type="button"
+              onClick={() => void adaptVariants(variants)}
+              disabled={!canAdapt}
+              aria-describedby="ai-adaptation-help"
+              title={
+                quotaCannotAdapt
+                  ? quotaReached
+                    ? "Daily AI adaptation limit reached. Try again later."
+                    : "There are not enough AI adaptations remaining for the selected platforms."
+                  : undefined
+              }
+              className="w-full sm:w-auto"
+            >
+              {adaptPost.isPending ? (
+                <LoaderCircle className="mr-2 animate-spin" aria-hidden="true" />
+              ) : (
+                <Sparkles className="mr-2" aria-hidden="true" />
+              )}
+              {adaptPost.isPending ? "Adapting with AI" : "Adapt with AI"}
+            </Button>
+            {quota ? (
+              <p className="text-xs text-muted-foreground">
+                {quota.remaining}/{quota.limit} today
+              </p>
+            ) : null}
+          </div>
         </div>
+
+        {quotaCannotAdapt ? (
+          <p className="mt-3 text-sm text-muted-foreground" role="status">
+            {quotaReached
+              ? "Daily AI adaptation limit reached. Try again later."
+              : "There are not enough AI adaptations remaining for the selected platforms."}
+          </p>
+        ) : null}
+
+        {aiQuota.isError ? (
+          <p className="mt-3 text-sm text-destructive" role="alert">
+            Unable to check AI availability. Refresh and try again.
+          </p>
+        ) : null}
 
         {hasAdaptationError ? (
           <div

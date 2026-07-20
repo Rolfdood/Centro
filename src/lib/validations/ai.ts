@@ -52,12 +52,24 @@ export const aiVariantSchema = z.object({
   errors: z.array(z.string()),
 });
 
+export const aiAdaptationQuotaSchema = z.object({
+  used: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  remaining: z.number().int().nonnegative(),
+});
+
 export const aiAdaptResponseSchema = z.object({
   variants: z.array(aiVariantSchema),
   model: z.string(),
+  quota: aiAdaptationQuotaSchema,
+});
+
+export const aiAdaptationQuotaResponseSchema = z.object({
+  quota: aiAdaptationQuotaSchema,
 });
 
 export type AdaptPostRequest = z.infer<typeof adaptPostRequestSchema>;
 export type AiTone = z.infer<typeof aiToneSchema>;
 export type AiAdaptRequest = z.infer<typeof aiAdaptRequestSchema>;
 export type AiVariant = z.infer<typeof aiVariantSchema>;
+export type AiAdaptationQuota = z.infer<typeof aiAdaptationQuotaSchema>;

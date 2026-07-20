@@ -1,15 +1,19 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { requestJson } from "@/lib/api/client";
 import {
   aiAdaptRequestSchema,
+  aiAdaptationQuotaResponseSchema,
   aiAdaptResponseSchema,
   type AiAdaptRequest,
 } from "@/lib/validations/ai";
 
 export type AdaptPostInput = AiAdaptRequest;
 export type AdaptPostResult = z.infer<typeof aiAdaptResponseSchema>;
+export type AiAdaptationQuotaResult = z.infer<
+  typeof aiAdaptationQuotaResponseSchema
+>;
 
 async function adaptPost(input: AdaptPostInput): Promise<AdaptPostResult> {
   const parsed = aiAdaptRequestSchema.safeParse(input);
@@ -30,4 +34,20 @@ async function adaptPost(input: AdaptPostInput): Promise<AdaptPostResult> {
 
 export function useAdaptPost() {
   return useMutation({ mutationFn: adaptPost });
+}
+
+async function getAiAdaptationQuota(): Promise<AiAdaptationQuotaResult> {
+  return requestJson(
+    "/api/ai/adapt",
+    { method: "GET" },
+    aiAdaptationQuotaResponseSchema,
+  );
+}
+
+export function useAiAdaptationQuota() {
+  return useQuery({
+    queryKey: ["ai", "adaptation-quota"],
+    queryFn: getAiAdaptationQuota,
+    staleTime: 30_000,
+  });
 }
