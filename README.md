@@ -92,8 +92,8 @@ The app uses **Auth.js / NextAuth v5** with credentials-based authentication:
   AI suggestions that always require review before publishing.
 - Publish through mock adapters, view persisted post statuses in the dashboard,
   and retry only failed targets.
-- Media is selected locally for previews and platform-rule validation; it is not
-  uploaded to server storage in this demo.
+- Media is uploaded to local server storage, persisted with each post, and
+  validated against every selected platform before publishing.
 - Analytics is a static demo preview. Scheduling and the calendar are not yet
   available.
 
