@@ -37,7 +37,7 @@ function reserveInMemory(generations: AiGenerationInput[]) {
   };
 }
 
-async function reserveAvailable(input: {
+async function reserveFromEmptyQuota(input: {
   limit: number;
   generations: AiGenerationInput[];
 }): Promise<AiQuotaReservation> {
@@ -97,7 +97,7 @@ async function run(): Promise<void> {
     getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
     provider: { model: "mock", adapt: async () => "x".repeat(281) },
     countGenerationsSince: async () => 0,
-    reserveGenerations: reserveAvailable,
+    reserveGenerations: reserveFromEmptyQuota,
   });
   const invalidResponse = await invalidOutput.POST(new Request("http://localhost", {
     method: "POST",
@@ -110,7 +110,7 @@ async function run(): Promise<void> {
     getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
     provider: { model: "mock", adapt: async () => { throw new Error("provider detail"); } },
     countGenerationsSince: async () => 0,
-    reserveGenerations: reserveAvailable,
+    reserveGenerations: reserveFromEmptyQuota,
   });
   const originalConsoleError = console.error;
   console.error = () => undefined;
@@ -136,7 +136,7 @@ async function run(): Promise<void> {
     getAuthenticatedUser: async () => ({ ok: false as const }),
     provider: { model: "mock", adapt: async () => "unused" },
     countGenerationsSince: async () => 0,
-    reserveGenerations: reserveAvailable,
+    reserveGenerations: reserveFromEmptyQuota,
   });
   assert.equal((await unauthenticated.POST(new Request("http://localhost"))).status, 401);
   assert.equal((await unauthenticated.GET()).status, 401);

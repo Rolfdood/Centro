@@ -8,6 +8,12 @@ import {
 import { db } from "@/lib/db";
 
 const SERIALIZATION_RETRY_LIMIT = 3;
+const SERIALIZATION_RETRY_DELAY_MS = 25;
+
+function waitForSerializationRetry(attempt: number): Promise<void> {
+  const delay = SERIALIZATION_RETRY_DELAY_MS * 2 ** attempt;
+  return new Promise((resolve) => setTimeout(resolve, delay));
+}
 
 async function reserveGenerations(input: {
   userId: string;
@@ -47,6 +53,7 @@ async function reserveGenerations(input: {
         error.code === "P2034" &&
         attempt < SERIALIZATION_RETRY_LIMIT - 1
       ) {
+        await waitForSerializationRetry(attempt);
         continue;
       }
 
