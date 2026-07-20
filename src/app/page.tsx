@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
+
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl items-center px-4 py-12 sm:px-6 sm:py-16">
@@ -15,18 +17,12 @@ export default function HomePage() {
           from one focused workspace.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Link
-            className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            href="/signup"
-          >
-            Get started
-          </Link>
-          <Link
-            className="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            href="/login"
-          >
-            Sign in
-          </Link>
+          <Button asChild size="lg">
+            <Link href="/signup">Get started</Link>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <Link href="/login">Sign in</Link>
+          </Button>
         </div>
       </div>
     </main>
