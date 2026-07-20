@@ -1,7 +1,11 @@
 # Centro
 
-Centro is a centralized social media control hub. This repository contains
-the application and database infrastructure for the one-week demo slice.
+Centro is a centralized social media control hub that lets teams draft one
+post, adapt it for multiple platforms, and publish it from one workspace. Centro is built with Next.js 14, TypeScript, Tailwind CSS,
+shadcn/ui, TanStack Query, Zustand, PostgreSQL, Prisma, and Auth.js. Backend
+planning and GitHub issue creation used GPT-5.6-Terra; implementation used a
+mix of GPT-5.6-Terra and Luna in high-effort mode through Codex with the
+Superpowers plugin.
 
 ## Prerequisites
 
@@ -53,9 +57,7 @@ the application and database infrastructure for the one-week demo slice.
    pnpm prisma db seed
    ```
 
-   This creates a dev account you can use to sign in immediately:
-   - **Email:** `dev@centro.local`
-   - **Password:** `password123`
+   This creates the development account listed in [Test credentials](#test-credentials).
 
 7. Start the development server:
 
@@ -65,6 +67,15 @@ the application and database infrastructure for the one-week demo slice.
 
    Open [http://localhost:3000](http://localhost:3000).
 
+## Test credentials
+
+> [!IMPORTANT]
+> Run `pnpm prisma db seed` before using these development-only credentials.
+
+| Email | Password |
+| --- | --- |
+| `dev@centro.local` | `password123` |
+
 ## Authentication
 
 The app uses **Auth.js / NextAuth v5** with credentials-based authentication:
@@ -73,6 +84,18 @@ The app uses **Auth.js / NextAuth v5** with credentials-based authentication:
 - **Sign in:** [http://localhost:3000/login](http://localhost:3000/login)
 - Passwords are hashed with **argon2**
 - Failed login attempts are throttled (>5 failures in 15 min blocks the account)
+
+## Current demo scope
+
+- Connect mocked X, Facebook, Instagram, TikTok, and LinkedIn accounts.
+- Draft platform-specific post variants, validate their platform rules, and use
+  AI suggestions that always require review before publishing.
+- Publish through mock adapters, view persisted post statuses in the dashboard,
+  and retry only failed targets.
+- Media is selected locally for previews and platform-rule validation; it is not
+  uploaded to server storage in this demo.
+- Analytics is a static demo preview. Scheduling and the calendar are not yet
+  available.
 
 ## AI adaptation and mock publishing
 
