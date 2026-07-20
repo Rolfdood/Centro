@@ -1,7 +1,61 @@
+import { Prisma } from "@prisma/client";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { defaultAiProvider } from "@/lib/ai/openai";
-import { createAiAdaptRouteHandler } from "@/lib/ai/route-handlers";
+import {
+  createAiAdaptRouteHandler,
+  type AiGenerationInput,
+} from "@/lib/ai/route-handlers";
 import { db } from "@/lib/db";
+
+const SERIALIZATION_RETRY_LIMIT = 3;
+
+async function reserveGenerations(input: {
+  userId: string;
+  since: Date;
+  limit: number;
+  generations: AiGenerationInput[];
+}) {
+  for (let attempt = 0; attempt < SERIALIZATION_RETRY_LIMIT; attempt += 1) {
+    try {
+      return await db.$transaction(async (transaction) => {
+        const used = await transaction.aiGeneration.count({
+          where: { userId: input.userId, createdAt: { gte: input.since } },
+        });
+        const remaining = Math.max(0, input.limit - used);
+
+        if (input.generations.length > remaining) {
+          return {
+            allowed: false,
+            quota: { used, limit: input.limit, remaining },
+          };
+        }
+
+        await transaction.aiGeneration.createMany({ data: input.generations });
+        const updatedUsed = used + input.generations.length;
+        return {
+          allowed: true,
+          quota: {
+            used: updatedUsed,
+            limit: input.limit,
+            remaining: input.limit - updatedUsed,
+          },
+        };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034" &&
+        attempt < SERIALIZATION_RETRY_LIMIT - 1
+      ) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error("Unable to reserve AI adaptations.");
+}
 
 const handlers = createAiAdaptRouteHandler({
   getAuthenticatedUser,
@@ -10,8 +64,7 @@ const handlers = createAiAdaptRouteHandler({
     db.aiGeneration.count({
       where: { userId, createdAt: { gte: since } },
     }),
-  createGenerations: (generations) =>
-    db.aiGeneration.createMany({ data: generations }),
+  reserveGenerations,
 });
 
 export const { GET, POST } = handlers;

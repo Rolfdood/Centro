@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { LoaderCircle, Sparkles } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAiAdaptationQuota, useAdaptPost } from "@/lib/api";
+import { ApiError, useAiAdaptationQuota, useAdaptPost } from "@/lib/api";
 import { requiresAiRegenerationConfirmation } from "@/stores/composerStore";
 import type {
   ComposerMedia,
@@ -48,18 +49,15 @@ export function AiAdaptPanel({
 }: AiAdaptPanelProps) {
   const adaptPost = useAdaptPost();
   const aiQuota = useAiAdaptationQuota();
+  const queryClient = useQueryClient();
   const adaptingRef = useRef(false);
   const [pendingRegeneration, setPendingRegeneration] =
     useState<ComposerVariant | null>(null);
   const [generatingAccountIds, setGeneratingAccountIds] = useState<
     ReadonlySet<string>
   >(new Set());
-  const [hasAdaptationError, setHasAdaptationError] = useState(false);
-  const [latestQuota, setLatestQuota] = useState<{
-    limit: number;
-    remaining: number;
-  } | null>(null);
-  const quota = latestQuota ?? aiQuota.data?.quota;
+  const [adaptationError, setAdaptationError] = useState<string | null>(null);
+  const quota = aiQuota.data?.quota;
   const quotaReached = quota?.remaining === 0;
   const requestedGenerationCount = new Set(
     variants.map((variant) => variant.platform),
@@ -85,7 +83,7 @@ export function AiAdaptPanel({
     }
 
     adaptingRef.current = true;
-    setHasAdaptationError(false);
+    setAdaptationError(null);
     setGeneratingAccountIds(
       new Set(variantsToAdapt.map((variant) => variant.accountId)),
     );
@@ -102,9 +100,8 @@ export function AiAdaptPanel({
           hasVideo: media.some((item) => item.type === "VIDEO"),
         },
       });
-      setLatestQuota({
-        limit: result.quota.limit,
-        remaining: result.quota.remaining,
+      queryClient.setQueryData(["ai", "adaptation-quota"], {
+        quota: result.quota,
       });
 
       const generatedByPlatform = new Map(
@@ -126,8 +123,12 @@ export function AiAdaptPanel({
 
         onGenerated(variant.accountId, generatedVariant.text);
       }
-    } catch {
-      setHasAdaptationError(true);
+    } catch (error) {
+      setAdaptationError(
+        error instanceof ApiError && error.status === 429
+          ? error.message
+          : "AI adaptation failed. Try again.",
+      );
       void aiQuota.refetch();
     } finally {
       adaptingRef.current = false;
@@ -233,12 +234,12 @@ export function AiAdaptPanel({
           </p>
         ) : null}
 
-        {hasAdaptationError ? (
+        {adaptationError ? (
           <div
             className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
             role="alert"
           >
-            <span>AI adaptation failed. Try again.</span>
+            <span>{adaptationError}</span>
             <Button
               type="button"
               variant="ghost"

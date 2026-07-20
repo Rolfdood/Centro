@@ -3,11 +3,53 @@ import {
   createAiAdaptRouteHandler,
   getAiDailyLimit,
   type AiGenerationInput,
+  type AiQuotaReservation,
 } from "../src/lib/ai/route-handlers";
 import type { AiAdaptInput } from "../src/lib/ai/provider";
 import { createOpenAiProvider } from "../src/lib/ai/openai";
 import { getConstraints } from "../src/lib/platforms/constraints";
 import { aiAdaptResponseSchema } from "../src/lib/validations/ai";
+
+function reserveInMemory(generations: AiGenerationInput[]) {
+  return async (input: {
+    limit: number;
+    generations: AiGenerationInput[];
+  }): Promise<AiQuotaReservation> => {
+    const used = generations.length;
+    const remaining = Math.max(0, input.limit - used);
+    if (input.generations.length > remaining) {
+      return {
+        allowed: false,
+        quota: { used, limit: input.limit, remaining },
+      };
+    }
+
+    generations.push(...input.generations);
+    const updatedUsed = used + input.generations.length;
+    return {
+      allowed: true,
+      quota: {
+        used: updatedUsed,
+        limit: input.limit,
+        remaining: input.limit - updatedUsed,
+      },
+    };
+  };
+}
+
+async function reserveAvailable(input: {
+  limit: number;
+  generations: AiGenerationInput[];
+}): Promise<AiQuotaReservation> {
+  return {
+    allowed: true,
+    quota: {
+      used: input.generations.length,
+      limit: input.limit,
+      remaining: input.limit - input.generations.length,
+    },
+  };
+}
 
 async function run(): Promise<void> {
   const generations: AiGenerationInput[] = [];
@@ -18,9 +60,7 @@ async function run(): Promise<void> {
       adapt: async ({ platform }: AiAdaptInput) => `${platform} variant`,
     },
     countGenerationsSince: async () => generations.length,
-    createGenerations: async (created) => {
-      generations.push(...created);
-    },
+    reserveGenerations: reserveInMemory(generations),
   });
 
   const response = await handler.POST(new Request("http://localhost", {
@@ -57,7 +97,7 @@ async function run(): Promise<void> {
     getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
     provider: { model: "mock", adapt: async () => "x".repeat(281) },
     countGenerationsSince: async () => 0,
-    createGenerations: async () => undefined,
+    reserveGenerations: reserveAvailable,
   });
   const invalidResponse = await invalidOutput.POST(new Request("http://localhost", {
     method: "POST",
@@ -70,7 +110,7 @@ async function run(): Promise<void> {
     getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
     provider: { model: "mock", adapt: async () => { throw new Error("provider detail"); } },
     countGenerationsSince: async () => 0,
-    createGenerations: async () => undefined,
+    reserveGenerations: reserveAvailable,
   });
   const originalConsoleError = console.error;
   console.error = () => undefined;
@@ -96,17 +136,34 @@ async function run(): Promise<void> {
     getAuthenticatedUser: async () => ({ ok: false as const }),
     provider: { model: "mock", adapt: async () => "unused" },
     countGenerationsSince: async () => 0,
-    createGenerations: async () => undefined,
+    reserveGenerations: reserveAvailable,
   });
   assert.equal((await unauthenticated.POST(new Request("http://localhost"))).status, 401);
+  assert.equal((await unauthenticated.GET()).status, 401);
 
   let usedGenerations = 19;
   const limitedHandler = createAiAdaptRouteHandler({
     getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
     provider: { model: "mock", adapt: async () => "adapted" },
     countGenerationsSince: async () => usedGenerations,
-    createGenerations: async (created) => {
+    reserveGenerations: async ({ limit, generations: created }) => {
+      const remaining = Math.max(0, limit - usedGenerations);
+      if (created.length > remaining) {
+        return {
+          allowed: false,
+          quota: { used: usedGenerations, limit, remaining },
+        };
+      }
+
       usedGenerations += created.length;
+      return {
+        allowed: true,
+        quota: {
+          used: usedGenerations,
+          limit,
+          remaining: limit - usedGenerations,
+        },
+      };
     },
   });
   const atLimit = await limitedHandler.POST(new Request("http://localhost", {

@@ -174,4 +174,6 @@ model AiGeneration {
   output    String
   model     String
   createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

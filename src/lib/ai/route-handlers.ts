@@ -21,11 +21,21 @@ export interface AiGenerationInput {
   model: string;
 }
 
+export interface AiQuotaReservation {
+  allowed: boolean;
+  quota: AiAdaptationQuota;
+}
+
 export interface AiAdaptRouteDependencies {
   getAuthenticatedUser: typeof getAuthenticatedUser;
   provider: AIProvider;
   countGenerationsSince: (userId: string, since: Date) => Promise<number>;
-  createGenerations: (generations: AiGenerationInput[]) => Promise<unknown>;
+  reserveGenerations: (input: {
+    userId: string;
+    since: Date;
+    limit: number;
+    generations: AiGenerationInput[];
+  }) => Promise<AiQuotaReservation>;
   getDailyLimit?: () => number;
   now?: () => Date;
 }
@@ -141,23 +151,26 @@ export function createAiAdaptRouteHandler(
         };
       }));
 
-      await dependencies.createGenerations(
-        generatedVariants.map(({ platform, text, prompt }) => ({
+      const reservation = await dependencies.reserveGenerations({
+        userId: authentication.userId,
+        since: new Date(
+          (dependencies.now ?? (() => new Date()))().getTime() - DAY_IN_MS,
+        ),
+        limit: quota.limit,
+        generations: generatedVariants.map(({ platform, text, prompt }) => ({
           userId: authentication.userId,
           platform,
           prompt,
           output: text,
           model: dependencies.provider.model,
         })),
-      );
+      });
+      if (!reservation.allowed) return quotaExceededResponse();
 
       return NextResponse.json(aiAdaptResponseSchema.parse({
         variants: generatedVariants.map(({ prompt: _prompt, ...variant }) => variant),
         model: dependencies.provider.model,
-        quota: quotaFor(
-          quota.used + requestedGenerations,
-          quota.limit,
-        ),
+        quota: reservation.quota,
       }));
     } catch (error) {
       console.error("Unable to adapt post with AI.", error);
