@@ -26,6 +26,7 @@ export const socialAccountDtoSchema = z.object({
   platform: z.enum(PLATFORMS),
   handle: z.string(),
   status: z.enum(accountStatuses),
+  scheduledTargetCount: z.number().int().nonnegative().default(0),
 }).strict();
 
 export const mediaAssetDtoSchema = z.object({

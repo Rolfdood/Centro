@@ -6,6 +6,7 @@ import {
 } from "../src/lib/accounts/route-handlers";
 import {
   createAccountRouteHandlers,
+  createDisconnectAccountForUser,
   type AccountRouteDependencies,
 } from "../src/lib/accounts/route-handlers";
 
@@ -87,6 +88,7 @@ async function run(): Promise<void> {
       platform: "X",
       handle: "@centro",
       status: "ACTIVE",
+      scheduledTargetCount: 0,
     },
   });
 
@@ -113,23 +115,57 @@ async function run(): Promise<void> {
   assert.equal(invalidResponse.status, 400);
   assert.ok((await invalidResponse.json()).fieldErrors.platform);
 
+  let cancellation: { status: string; error: string } | null = null;
+  let accountDeleted = false;
+  const postStatuses: string[] = [];
+  const disconnectScheduledAccount = createDisconnectAccountForUser({
+    transact: async (operation) =>
+      operation({
+        socialAccount: {
+          findFirst: async () => ({
+            id: accountWithTargetsId,
+            targets: [{ postId: "post-scheduled", status: "SCHEDULED" }],
+          }),
+          delete: async () => {
+            accountDeleted = true;
+          },
+        },
+        postTarget: {
+          updateMany: async ({ data }: { data: { status: string; error: string } }) => {
+            cancellation = data;
+          },
+          deleteMany: async () => ({ count: 1 }),
+          findMany: async () => [],
+        },
+        post: {
+          update: async ({ data }: { data: { status: string } }) => {
+            postStatuses.push(data.status);
+          },
+        },
+      } as unknown as Parameters<typeof operation>[0]),
+  });
+  assert.deepEqual(
+    await disconnectScheduledAccount(accountWithTargetsId, userId),
+    { scheduledTargetCount: 1 },
+  );
+  assert.deepEqual(cancellation, {
+    status: "CANCELLED",
+    error: "Cancelled because its account was disconnected.",
+  });
+  assert.equal(accountDeleted, true);
+  assert.deepEqual(postStatuses, ["FAILED"]);
+
+  const disconnectedAccountIds: string[] = [];
   const disconnectDependencies: AccountRouteDependencies = {
     getAuthenticatedUser: authenticatedUser(),
-    socialAccounts: {
-      findFirst: async ({ where }: { where: { id: string } }) => {
-        if (where.id === missingAccountId) {
-          return null;
-        }
+    disconnectAccount: async (accountId) => {
+      disconnectedAccountIds.push(accountId);
+      if (accountId === missingAccountId) return null;
 
-        return {
-          id: where.id,
-          targets:
-            where.id === accountWithTargetsId ? [{ id: "target-1" }] : [],
-        };
-      },
-      delete: async ({ where }: { where: { id: string } }) =>
-        createSocialAccount(where.id, "@centro"),
-    } as unknown as AccountRouteDependencies["socialAccounts"],
+      return {
+        scheduledTargetCount: accountId === accountWithTargetsId ? 1 : 0,
+      };
+    },
   };
   const disconnectHandlers = createAccountRouteHandlers(disconnectDependencies);
 
@@ -151,10 +187,11 @@ async function run(): Promise<void> {
   });
   assert.equal(missingResponse.status, 404);
 
-  const targetResponse = await disconnectHandlers.DELETE(new Request("http://localhost"), {
+  const scheduledTargetResponse = await disconnectHandlers.DELETE(new Request("http://localhost"), {
     params: { id: accountWithTargetsId },
   });
-  assert.equal(targetResponse.status, 409);
+  assert.equal(scheduledTargetResponse.status, 204);
+  assert.deepEqual(disconnectedAccountIds, [missingAccountId, accountWithTargetsId]);
 
   const deleteResponse = await disconnectHandlers.DELETE(new Request("http://localhost"), {
     params: { id: removableAccountId },
