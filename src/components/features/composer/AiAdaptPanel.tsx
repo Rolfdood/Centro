@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { LoaderCircle, Sparkles } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAdaptPost } from "@/lib/api";
+import { ApiError, useAiAdaptationQuota, useAdaptPost } from "@/lib/api";
 import { requiresAiRegenerationConfirmation } from "@/stores/composerStore";
 import type {
   ComposerMedia,
@@ -47,18 +48,30 @@ export function AiAdaptPanel({
   children,
 }: AiAdaptPanelProps) {
   const adaptPost = useAdaptPost();
+  const aiQuota = useAiAdaptationQuota();
+  const queryClient = useQueryClient();
   const adaptingRef = useRef(false);
   const [pendingRegeneration, setPendingRegeneration] =
     useState<ComposerVariant | null>(null);
   const [generatingAccountIds, setGeneratingAccountIds] = useState<
     ReadonlySet<string>
   >(new Set());
-  const [hasAdaptationError, setHasAdaptationError] = useState(false);
+  const [adaptationError, setAdaptationError] = useState<string | null>(null);
+  const quota = aiQuota.data?.quota;
+  const quotaReached = quota?.remaining === 0;
+  const requestedGenerationCount = new Set(
+    variants.map((variant) => variant.platform),
+  ).size;
+  const quotaCannotAdapt =
+    quota !== undefined && quota.remaining < requestedGenerationCount;
   const canAdapt =
     baseText.trim().length > 0 &&
     variants.length > 0 &&
     !adaptPost.isPending &&
-    !adaptingRef.current;
+    !adaptingRef.current &&
+    !aiQuota.isLoading &&
+    !aiQuota.isError &&
+    !quotaCannotAdapt;
 
   async function adaptVariants(variantsToAdapt: ComposerVariant[]) {
     if (
@@ -70,7 +83,7 @@ export function AiAdaptPanel({
     }
 
     adaptingRef.current = true;
-    setHasAdaptationError(false);
+    setAdaptationError(null);
     setGeneratingAccountIds(
       new Set(variantsToAdapt.map((variant) => variant.accountId)),
     );
@@ -86,6 +99,9 @@ export function AiAdaptPanel({
           hasImages: media.some((item) => item.type === "IMAGE"),
           hasVideo: media.some((item) => item.type === "VIDEO"),
         },
+      });
+      queryClient.setQueryData(["ai", "adaptation-quota"], {
+        quota: result.quota,
       });
 
       const generatedByPlatform = new Map(
@@ -107,8 +123,13 @@ export function AiAdaptPanel({
 
         onGenerated(variant.accountId, generatedVariant.text);
       }
-    } catch {
-      setHasAdaptationError(true);
+    } catch (error) {
+      setAdaptationError(
+        error instanceof ApiError && error.status === 429
+          ? error.message
+          : "AI adaptation failed. Try again.",
+      );
+      void aiQuota.refetch();
     } finally {
       adaptingRef.current = false;
       setGeneratingAccountIds(new Set());
@@ -116,7 +137,7 @@ export function AiAdaptPanel({
   }
 
   function requestRegeneration(variant: ComposerVariant) {
-    if (adaptPost.isPending || adaptingRef.current) {
+    if (adaptPost.isPending || adaptingRef.current || quotaReached) {
       return;
     }
 
@@ -169,28 +190,56 @@ export function AiAdaptPanel({
               ? `Generate suggestions for ${variants.length} selected ${variants.length === 1 ? "platform" : "platforms"}.`
               : "Select a platform to generate a suggestion."}
           </p>
-          <Button
-            type="button"
-            onClick={() => void adaptVariants(variants)}
-            disabled={!canAdapt}
-            aria-describedby="ai-adaptation-help"
-            className="w-full sm:w-auto"
-          >
-            {adaptPost.isPending ? (
-              <LoaderCircle className="mr-2 animate-spin" aria-hidden="true" />
-            ) : (
-              <Sparkles className="mr-2" aria-hidden="true" />
-            )}
-            {adaptPost.isPending ? "Adapting with AI" : "Adapt with AI"}
-          </Button>
+          <div className="w-full space-y-1 sm:w-auto sm:text-right">
+            <Button
+              type="button"
+              onClick={() => void adaptVariants(variants)}
+              disabled={!canAdapt}
+              aria-describedby="ai-adaptation-help"
+              title={
+                quotaCannotAdapt
+                  ? quotaReached
+                    ? "Daily AI adaptation limit reached. Try again later."
+                    : "There are not enough AI adaptations remaining for the selected platforms."
+                  : undefined
+              }
+              className="w-full sm:w-auto"
+            >
+              {adaptPost.isPending ? (
+                <LoaderCircle className="mr-2 animate-spin" aria-hidden="true" />
+              ) : (
+                <Sparkles className="mr-2" aria-hidden="true" />
+              )}
+              {adaptPost.isPending ? "Adapting with AI" : "Adapt with AI"}
+            </Button>
+            {quota ? (
+              <p className="text-xs text-muted-foreground">
+                {quota.remaining}/{quota.limit} today
+              </p>
+            ) : null}
+          </div>
         </div>
 
-        {hasAdaptationError ? (
+        {quotaCannotAdapt ? (
+          <p className="mt-3 text-sm text-muted-foreground" role="status">
+            {quotaReached
+              ? "Daily AI adaptation limit reached. Try again later."
+              : "There are not enough AI adaptations remaining for the selected platforms."}
+          </p>
+        ) : null}
+
+        {aiQuota.isError ? (
+          <p className="mt-3 text-sm text-destructive" role="alert">
+            Unable to check AI availability. Refresh and try again.
+          </p>
+        ) : null}
+
+        {adaptationError ? (
           <div
             className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
             role="alert"
           >
-            <span>AI adaptation failed. Try again.</span>
+            <span>{adaptationError}</span>
             <Button
               type="button"
               variant="ghost"
