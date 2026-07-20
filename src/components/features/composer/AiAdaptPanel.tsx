@@ -105,7 +105,7 @@ export function AiAdaptPanel({
           continue;
         }
 
-        onGenerated(variant.accountId, generatedVariant.adaptedText);
+        onGenerated(variant.accountId, generatedVariant.text);
       }
     } catch {
       setHasAdaptationError(true);
