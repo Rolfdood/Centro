@@ -41,7 +41,6 @@ export default function HomePage() {
       <header className="relative z-10 mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
         <Link href="/" className="flex items-center gap-2.5" aria-label="Centro home">
           <BrandMark />
-          <span className="text-lg font-semibold tracking-tight">Centro</span>
         </Link>
 
         <nav className="flex items-center gap-1.5 sm:gap-3" aria-label="Account navigation">
@@ -59,13 +58,9 @@ export default function HomePage() {
       <main className="relative z-10">
         <section className="mx-auto max-w-7xl px-5 pb-20 pt-16 sm:px-8 sm:pb-28 sm:pt-24 lg:px-10 lg:pt-28">
           <div className="mx-auto max-w-4xl text-center">
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(74,222,128,0.45)]" />
-              Your social command center
-            </p>
-            <h1 className="mt-6 text-balance text-5xl font-semibold leading-[0.98] tracking-[-0.06em] sm:text-6xl lg:text-8xl">
-              One post. Every
-              <span className="block text-white/45">place it matters.</span>
+            <h1 className="text-balance text-5xl font-semibold leading-[0.98] tracking-[-0.03em] sm:text-6xl lg:text-8xl">
+              One post. Everywhere,
+              <span className="block text-white/45">without being everywhere.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
               Centro helps social teams create, adapt, and publish on every channel — all from one focused workspace.
@@ -133,9 +128,8 @@ export default function HomePage() {
       </main>
 
       <footer className="relative z-10 border-t border-white/[0.07]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-7 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
-          <div className="flex items-center gap-2"><BrandMark /><span className="font-medium text-foreground">Centro</span><span className="ml-1 text-white/25">© {new Date().getFullYear()}</span></div>
-          <div className="flex gap-5"><Link className="transition-colors hover:text-foreground" href="/login">Sign in</Link><Link className="transition-colors hover:text-foreground" href="/signup">Get started</Link></div>
+        <div className="mx-auto max-w-7xl px-5 py-7 text-center text-sm text-muted-foreground sm:px-8 lg:px-10">
+          © {new Date().getFullYear()} All rights reserved.
         </div>
       </footer>
     </div>

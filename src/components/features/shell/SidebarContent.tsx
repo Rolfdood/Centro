@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -36,11 +37,14 @@ export function SidebarContent({ user }: SidebarContentProps) {
 
   return (
     <div className="flex h-full flex-col gap-1 px-3 py-4">
-      <Link href="/dashboard" className="mb-6 flex items-center gap-2 px-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground text-background">
-          <PenLine className="h-4 w-4" />
-        </div>
-        <span className="font-semibold tracking-tight">Centro</span>
+      <Link href="/dashboard" className="flex items-center px-3">
+          <Image
+            src="/branding/logo-light.svg"
+            alt=""
+            width={60}
+            height={60}
+            className="size-[60px]"
+          />
       </Link>
 
       <nav className="flex flex-col gap-1">

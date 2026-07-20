@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -46,7 +47,16 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
       <div className="flex w-full max-w-[360px] flex-col gap-8">
         <header className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Centro</h1>
+          <h1>
+            <Image
+              src="/branding/logo-light.svg"
+              alt="Centro"
+              width={60}
+              height={60}
+              className="size-[60px]"
+              priority
+            />
+          </h1>
           <p className="text-sm text-muted-foreground">
             Write once. Publish everywhere.
           </p>
