@@ -13,6 +13,7 @@ import { MediaUploader } from "./MediaUploader";
 import { PlatformSelector } from "./PlatformSelector";
 import { PlatformVariantCard } from "./PlatformVariantCard";
 import { PublishFooter } from "./PublishFooter";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function Composer() {
   const router = useRouter();
@@ -137,10 +138,10 @@ export function Composer() {
       <div className="space-y-6">
         {isLoading ? (
           <section aria-label="Loading accounts" className="space-y-2">
-            <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+            <Skeleton className="h-3 w-20" />
             <div className="flex gap-2">
-              <div className="h-9 w-32 animate-pulse rounded-md bg-muted" />
-              <div className="h-9 w-36 animate-pulse rounded-md bg-muted" />
+              <Skeleton className="h-9 w-32" />
+              <Skeleton className="h-9 w-36" />
             </div>
           </section>
         ) : isError ? (

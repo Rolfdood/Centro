@@ -1,6 +1,13 @@
 "use client";
 
 import { COMPOSER_TONES, type ComposerTone } from "@/stores/composerStore";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ToneSelectorProps {
   value: ComposerTone;
@@ -15,17 +22,19 @@ export function ToneSelector({ value, onChange }: ToneSelectorProps) {
   return (
     <label className="flex items-center gap-2 text-xs text-muted-foreground">
       <span className="font-mono uppercase tracking-wide">Tone</span>
-      <select
+      <Select
         value={value}
-        onChange={(event) => onChange(event.target.value as ComposerTone)}
-        className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onValueChange={(nextValue) => onChange(nextValue as ComposerTone)}
       >
-        {COMPOSER_TONES.map((tone) => (
-          <option key={tone} value={tone}>
-            {formatTone(tone)}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className="w-28" aria-label="AI adaptation tone">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {COMPOSER_TONES.map((tone) => (
+            <SelectItem key={tone} value={tone}>{formatTone(tone)}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </label>
   );
 }

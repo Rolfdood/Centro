@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono";
 
 import { SessionProvider } from "@/components/providers/session-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: Readonly<RootLayoutProps>) {
       <body className="font-sans antialiased">
         <SessionProvider>
           <QueryProvider>{children}</QueryProvider>
+          <Toaster />
         </SessionProvider>
       </body>
     </html>

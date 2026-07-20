@@ -7,6 +7,7 @@ import { ConnectAccountButton } from "@/components/features/accounts/ConnectAcco
 import { MockConsentDialog } from "@/components/features/accounts/MockConsentDialog";
 import { PlatformIcon } from "@/components/features/accounts/PlatformIcon";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -30,13 +31,13 @@ function AccountListSkeleton() {
           className="flex items-center justify-between gap-4 border-b border-border px-4 py-4 last:border-b-0"
         >
           <div className="flex items-center gap-3">
-            <div className="size-9 animate-pulse rounded-full bg-muted" />
+            <Skeleton className="size-9 rounded-full" />
             <div className="space-y-2">
-              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-3 w-16 animate-pulse rounded bg-muted" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-16" />
             </div>
           </div>
-          <div className="h-9 w-20 animate-pulse rounded bg-muted" />
+          <Skeleton className="h-9 w-20" />
         </div>
       ))}
     </div>

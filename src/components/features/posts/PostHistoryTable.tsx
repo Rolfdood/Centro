@@ -14,6 +14,8 @@ import {
 
 import { PostHistoryRow } from "@/components/features/posts/PostHistoryRow";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePosts, useRetryPost } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { PostDetailDto, PostListItemDto } from "@/types";
@@ -114,8 +116,8 @@ function LoadingPosts() {
       </div>
       {[0, 1, 2].map((item) => (
         <div key={item} className="flex items-center gap-4 border-b border-border px-4 py-5 last:border-b-0">
-          <span className="size-2 animate-pulse rounded-full bg-muted" />
-          <span className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+          <Skeleton className="size-2 rounded-full" />
+          <Skeleton className="h-4 w-2/3" />
         </div>
       ))}
     </div>
@@ -229,32 +231,31 @@ export function PostHistoryTable({ timezone }: PostHistoryTableProps) {
   return (
     <section aria-label="Post history">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1 sm:w-auto" role="tablist" aria-label="Post filters">
-          {FILTERS.map((filter) => {
-            const count = posts.filter((post) => matchesFilter(post, filter.id)).length;
-            const isActive = activeFilter === filter.id;
+        <Tabs
+          value={activeFilter}
+          onValueChange={(value) => handleFilterChange(value as PostFilter)}
+          className="w-full sm:w-auto"
+        >
+          <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1 sm:w-auto" aria-label="Post filters">
+            {FILTERS.map((filter) => {
+              const count = posts.filter((post) => matchesFilter(post, filter.id)).length;
 
-            return (
-              <button
-                key={filter.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                className={cn(
-                  "shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors",
-                  isActive
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                  filter.id === "FAILED" && !isActive ? "hover:text-destructive" : "",
-                )}
-                onClick={() => handleFilterChange(filter.id)}
-              >
-                {filter.label}
-                <span className="ml-1 font-mono text-xs text-muted-foreground">{count}</span>
-              </button>
-            );
-          })}
-        </div>
+              return (
+                <TabsTrigger
+                  key={filter.id}
+                  className={cn(
+                    "shrink-0 px-3 py-1.5",
+                    filter.id === "FAILED" ? "data-[state=inactive]:hover:text-destructive" : "",
+                  )}
+                  value={filter.id}
+                >
+                  {filter.label}
+                  <span className="ml-1 font-mono text-xs text-muted-foreground">{count}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
 
         <div className="flex gap-2 self-start sm:self-auto">
           {retryablePosts.length > 0 ? (
