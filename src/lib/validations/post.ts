@@ -1,6 +1,7 @@
 import { z } from "zod";
 export { validationErrorSchema } from "@/lib/validations/common";
 export type { ValidationErrorResponse } from "@/lib/validations/common";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_SIZE_MESSAGE } from "@/lib/validations/upload";
 
 export const postTargetInputSchema = z.object({
   accountId: z.string().trim().min(1, "Account is required"),
@@ -11,7 +12,7 @@ export const mediaInputSchema = z.object({
   url: z.string().url("Media URL must be valid"),
   type: z.enum(["IMAGE", "VIDEO"]),
   mimeType: z.string().trim().min(1).optional(),
-  sizeBytes: z.number().int().nonnegative(),
+  sizeBytes: z.number().int().nonnegative().max(MAX_UPLOAD_BYTES, MAX_UPLOAD_SIZE_MESSAGE),
   width: z.number().int().nonnegative().nullable().optional(),
   height: z.number().int().nonnegative().nullable().optional(),
   order: z.number().int().nonnegative(),

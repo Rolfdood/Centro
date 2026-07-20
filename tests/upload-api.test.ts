@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 
 import { createUploadRouteHandlers } from "../src/lib/uploads/route-handlers";
-import { uploadResponseSchema } from "../src/lib/validations/upload";
+import {
+  isWithinUploadSizeLimit,
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_SIZE_MESSAGE,
+  uploadResponseSchema,
+} from "../src/lib/validations/upload";
 
 async function run(): Promise<void> {
   const savedUploads: Array<{ bytes: Uint8Array; mimeType: string }> = [];
@@ -28,6 +33,21 @@ async function run(): Promise<void> {
   assert.equal(body.media.url, "https://centro.local/api/uploads/123e4567-e89b-12d3-a456-426614174000.png");
   assert.equal(savedUploads[0]?.mimeType, "image/png");
   assert.equal(savedUploads[0]?.bytes.byteLength, 10);
+
+  assert.equal(isWithinUploadSizeLimit(MAX_UPLOAD_BYTES), true);
+  assert.equal(isWithinUploadSizeLimit(MAX_UPLOAD_BYTES + 1), false);
+
+  const oversizedFormData = new FormData();
+  oversizedFormData.set("file", new File([
+    new Uint8Array(MAX_UPLOAD_BYTES + 1),
+  ], "oversized.png", { type: "image/png" }));
+  const oversized = await handlers.POST(new Request("https://centro.local/api/uploads", {
+    method: "POST",
+    body: oversizedFormData,
+  }));
+  assert.equal(oversized.status, 400);
+  assert.deepEqual(await oversized.json(), { error: MAX_UPLOAD_SIZE_MESSAGE });
+  assert.equal(savedUploads.length, 1);
 
   const invalidFormData = new FormData();
   invalidFormData.set("file", new File(["file"], "file.txt", { type: "text/plain" }));

@@ -1,4 +1,8 @@
 import { type PlatformConstraints } from "./types";
+import {
+  isWithinUploadSizeLimit,
+  MAX_UPLOAD_SIZE_MESSAGE,
+} from "@/lib/validations/upload";
 
 export const PLATFORMS = ["X", "FACEBOOK", "INSTAGRAM", "TIKTOK", "LINKEDIN"] as const;
 
@@ -194,13 +198,14 @@ export function validateMedia(
       );
     }
 
-    if (
-      item.sizeBytes !== undefined &&
-      item.sizeBytes > constraints.maxFileSizeMB * BYTES_PER_MB
-    ) {
-      errors.push(
-        `File exceeds ${platform} size limit of ${constraints.maxFileSizeMB} MB`,
-      );
+    if (item.sizeBytes !== undefined) {
+      if (!isWithinUploadSizeLimit(item.sizeBytes)) {
+        errors.push(MAX_UPLOAD_SIZE_MESSAGE);
+      } else if (item.sizeBytes > constraints.maxFileSizeMB * BYTES_PER_MB) {
+        errors.push(
+          `File exceeds ${platform} size limit of ${constraints.maxFileSizeMB} MB`,
+        );
+      }
     }
   }
 

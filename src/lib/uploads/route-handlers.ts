@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 
 import type { getAuthenticatedUser } from "@/lib/auth";
 import type { MediaStorage } from "@/lib/storage/types";
-import { uploadResponseSchema } from "@/lib/validations/upload";
+import {
+  isWithinUploadSizeLimit,
+  MAX_UPLOAD_SIZE_MESSAGE,
+  uploadResponseSchema,
+} from "@/lib/validations/upload";
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const UPLOAD_FILE_NAME = /^[0-9a-f-]{36}\.(gif|jpg|png|webp|mp4|webm)$/;
 
 function mediaTypeForMimeType(mimeType: string): "IMAGE" | "VIDEO" | null {
@@ -48,8 +51,8 @@ export function createUploadRouteHandlers(dependencies: UploadRouteDependencies)
       return NextResponse.json({ error: "Only images and video are supported." }, { status: 400 });
     }
 
-    if (file.size > MAX_UPLOAD_BYTES) {
-      return NextResponse.json({ error: "Files must be 25 MB or smaller." }, { status: 400 });
+    if (!isWithinUploadSizeLimit(file.size)) {
+      return NextResponse.json({ error: MAX_UPLOAD_SIZE_MESSAGE }, { status: 400 });
     }
 
     try {
