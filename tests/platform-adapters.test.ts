@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { PostTarget, SocialAccount } from "@prisma/client";
+import type { MediaAsset, PostTarget, SocialAccount } from "@prisma/client";
 import { BaseMockAdapter, getMockFailureRate } from "../src/lib/platforms/adapters/baseMock";
 import type { PublishInput } from "../src/lib/platforms/types";
 
@@ -36,6 +36,17 @@ function createInput(targetId: string, text = "Hello from Centro"): PublishInput
   };
 }
 
+const image: MediaAsset = {
+  id: "media-1",
+  postId: "post-1",
+  url: "https://centro.local/api/uploads/image.jpg",
+  type: "IMAGE",
+  sizeBytes: 1024,
+  width: null,
+  height: null,
+  order: 0,
+};
+
 async function run(): Promise<void> {
   const originalFailureRate = process.env.MOCK_FAILURE_RATE;
   process.env.MOCK_FAILURE_RATE = "0";
@@ -59,6 +70,12 @@ async function run(): Promise<void> {
       error: "Instagram requires an image",
       retryable: false,
     });
+
+    const instagramWithImage = await new BaseMockAdapter("INSTAGRAM").publishPost({
+      ...createInput("target-3"),
+      media: [image],
+    });
+    assert.equal(instagramWithImage.ok, true);
 
     const firstAnalytics = await xAdapter.fetchAnalytics(publishedTarget);
     const repeatedAnalytics = await xAdapter.fetchAnalytics(publishedTarget);

@@ -2,7 +2,8 @@ import { Prisma, type SocialAccount } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { getAuthenticatedUser } from "@/lib/auth";
-import { validateTextLength } from "@/lib/platforms/constraints";
+import { validatePost } from "@/lib/platforms/constraints";
+import type { MediaInput } from "@/lib/validations/post";
 import {
   toPostDetailDto,
   toPostListItemDto,
@@ -32,6 +33,7 @@ export interface PostsRouteDependencies {
     baseText: string;
     idempotencyKey: string;
     targets: DraftTarget[];
+    media: MediaInput[];
   }) => Promise<PostWithRelations>;
 }
 
@@ -128,12 +130,6 @@ export function createPostsRouteHandlers(dependencies: PostsRouteDependencies) {
       return invalidRequestResponse("Invalid request.", fieldErrors(input.error));
     }
 
-    if (input.data.media.length > 0) {
-      return invalidRequestResponse("Media uploads are not supported yet.", {
-        media: ["Media uploads are not supported yet."],
-      });
-    }
-
     if (input.data.scheduledAt) {
       return invalidRequestResponse("Scheduling is not supported yet.", {
         scheduledAt: ["Scheduling is not supported yet."],
@@ -173,12 +169,13 @@ export function createPostsRouteHandlers(dependencies: PostsRouteDependencies) {
           throw new Error("Selected account was not loaded.");
         }
 
-        const validation = validateTextLength(
+        const validation = validatePost(
           account.platform,
           target.adaptedText,
+          input.data.media,
         );
-        if (!validation.valid && validation.error) {
-          errors[`targets.${index}.adaptedText`] = [validation.error];
+        if (!validation.valid) {
+          errors[`targets.${index}`] = validation.errors;
         }
 
         return {
@@ -198,6 +195,7 @@ export function createPostsRouteHandlers(dependencies: PostsRouteDependencies) {
         baseText: input.data.baseText,
         idempotencyKey: input.data.idempotencyKey,
         targets,
+        media: input.data.media,
       });
       return NextResponse.json(
         postDetailResponseSchema.parse({ post: toPostDetailDto(post) }),

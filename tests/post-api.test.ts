@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import type { SocialAccount } from "@prisma/client";
+import type { MediaAsset, SocialAccount } from "@prisma/client";
 import {
   createPostsRouteHandlers,
   type PostsRouteDependencies,
 } from "../src/lib/posts/route-handlers";
 import type { PostWithRelations } from "../src/lib/posts";
+import type { MediaInput } from "../src/lib/validations/post";
 
 const userId = "user-1";
 const key = "123e4567-e89b-12d3-a456-426614174000";
@@ -18,7 +19,11 @@ const account: SocialAccount = {
   status: "ACTIVE",
 };
 
-function postFixture(ownerId: string, idempotencyKey: string): PostWithRelations {
+function postFixture(
+  ownerId: string,
+  idempotencyKey: string,
+  media: MediaInput[] = [],
+): PostWithRelations {
   return {
     id: "post-1",
     userId: ownerId,
@@ -28,7 +33,11 @@ function postFixture(ownerId: string, idempotencyKey: string): PostWithRelations
     idempotencyKey,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    media: [],
+    media: media.map((asset, index) => ({
+      ...asset,
+      id: `media-${index + 1}`,
+      postId: "post-1",
+    })) as MediaAsset[],
     targets: [{
       id: "target-1",
       postId: "post-1",
@@ -46,7 +55,7 @@ function postFixture(ownerId: string, idempotencyKey: string): PostWithRelations
   } as PostWithRelations;
 }
 
-function request(idempotencyKey = key): Request {
+function request(idempotencyKey = key, media: MediaInput[] = []): Request {
   return new Request("http://localhost/api/posts", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -54,20 +63,24 @@ function request(idempotencyKey = key): Request {
       idempotencyKey,
       baseText: "Hello from Centro",
       targets: [{ accountId: account.id }],
+      media,
     }),
   });
 }
 
 async function run(): Promise<void> {
   const posts = new Map<string, PostWithRelations>();
+  let activeAccounts = [account];
+  let createdMedia: MediaInput[] = [];
   const dependencies: PostsRouteDependencies = {
     getAuthenticatedUser: async () => ({ ok: true, userId }),
     findPostByIdempotencyKey: async (idempotencyKey) =>
       posts.get(idempotencyKey) ?? null,
     findPostsByUser: async () => [],
-    findActiveAccounts: async () => [account],
+    findActiveAccounts: async () => activeAccounts,
     createPost: async (input) => {
-      const post = postFixture(input.userId, input.idempotencyKey);
+      createdMedia = input.media;
+      const post = postFixture(input.userId, input.idempotencyKey, input.media);
       posts.set(input.idempotencyKey, post);
       return post;
     },
@@ -88,11 +101,23 @@ async function run(): Promise<void> {
   }));
   assert.equal(malformed.status, 400);
 
-  const created = await handlers.POST(request());
+  const media: MediaInput[] = [{
+    url: "https://centro.local/api/uploads/image.png",
+    type: "IMAGE",
+    mimeType: "image/png",
+    sizeBytes: 1024,
+    width: null,
+    height: null,
+    order: 0,
+  }];
+  const created = await handlers.POST(request(key, media));
   assert.equal(created.status, 201);
-  assert.equal((await created.json()).post.id, "post-1");
+  const createdBody = await created.json();
+  assert.equal(createdBody.post.id, "post-1");
+  assert.deepEqual(createdMedia, media);
+  assert.deepEqual(createdBody.post.media.map((asset: MediaAsset) => asset.url), [media[0].url]);
 
-  const repeated = await handlers.POST(request());
+  const repeated = await handlers.POST(request(key, media));
   assert.equal(repeated.status, 200);
   assert.equal((await repeated.json()).post.id, "post-1");
 
@@ -102,6 +127,15 @@ async function run(): Promise<void> {
   );
   const foreign = await handlers.POST(request("123e4567-e89b-12d3-a456-426614174001"));
   assert.equal(foreign.status, 409);
+
+  activeAccounts = [{ ...account, platform: "INSTAGRAM" }];
+  const invalidMedia = await handlers.POST(
+    request("123e4567-e89b-12d3-a456-426614174002"),
+  );
+  assert.equal(invalidMedia.status, 400);
+  assert.deepEqual((await invalidMedia.json()).fieldErrors["targets.0"], [
+    "Instagram requires an image",
+  ]);
 }
 
 void run().catch((error: unknown) => {
