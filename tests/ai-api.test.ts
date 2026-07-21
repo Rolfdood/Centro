@@ -248,11 +248,23 @@ async function run(): Promise<void> {
 
   assert.doesNotThrow(() => assertSafeSocialCopy("Our API integration is live today."));
   assert.doesNotThrow(() => assertSafeSocialCopy("class is in session today!"));
+  for (const safeSocialCopy of [
+    "Const as a rock, our team stands firm.",
+    "Type fast, win big.",
+    "Import our values into your daily routine.",
+    "Export your ideas and inspire the community.",
+    "Node the date in your calendar.",
+    "Python is our mascot for today.",
+  ]) {
+    assert.doesNotThrow(() => assertSafeSocialCopy(safeSocialCopy));
+  }
   for (const unsafeText of [
     "```ts\nconst answer = 42;\n```",
     "<script>alert('x')</script>",
     "curl https://example.com/deploy",
     "import secret from './secret'",
+    "export const answer = 42",
+    "pnpm install",
     "class PostComposer {}",
   ]) {
     assert.throws(() => assertSafeSocialCopy(unsafeText), /unsafe executable syntax/i);
@@ -260,13 +272,11 @@ async function run(): Promise<void> {
 
   const previousEnvironment = {
     GROQ_API_KEY: process.env.GROQ_API_KEY,
-    OPENCODE_API_KEY: process.env.OPENCODE_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     GROQ_MODEL: process.env.GROQ_MODEL,
   };
   try {
     process.env.GROQ_API_KEY = "";
-    process.env.OPENCODE_API_KEY = "opencode-key";
     process.env.OPENAI_API_KEY = "openai-key";
     process.env.GROQ_MODEL = "groq-model";
     assert.equal(defaultAiProvider().model, "groq-model");
