@@ -37,14 +37,14 @@ export function SidebarContent({ user }: SidebarContentProps) {
 
   return (
     <div className="flex h-full flex-col gap-1 px-3 py-4">
-      <Link href="/dashboard" className="flex items-center px-3">
-          <Image
-            src="/branding/logo-light.svg"
-            alt=""
-            width={60}
-            height={60}
-            className="size-[60px]"
-          />
+      <Link href="/dashboard" className="mb-6 flex items-center px-3">
+        <Image
+          src="/branding/logo-light.svg"
+          alt=""
+          width={60}
+          height={60}
+          className="size-[60px]"
+        />
       </Link>
 
       <nav className="flex flex-col gap-1">

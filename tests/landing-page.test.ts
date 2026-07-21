@@ -54,5 +54,9 @@ assert.match(
 );
 assert.match(sidebarContent, /src="\/branding\/logo-light\.svg"[\s\S]*?width=\{60\}/);
 assert.match(sidebarContent, /src="\/branding\/logo-light\.svg"[\s\S]*?height=\{60\}/);
+assert.match(
+  sidebarContent,
+  /<Link href="\/dashboard" className="mb-6 flex items-center px-3">/,
+);
 
 console.log("Landing page content tests passed.");
