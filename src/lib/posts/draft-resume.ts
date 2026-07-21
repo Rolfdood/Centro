@@ -2,6 +2,18 @@ import type { PostListItemDto } from "@/types";
 
 type DraftCandidate = Pick<PostListItemDto, "id" | "status" | "updatedAt">;
 
+export function shouldOfferDraftResume(
+  hasRequestedDraft: boolean,
+  hasDismissedResumePrompt: boolean,
+  latestDraftId: string | null | undefined,
+): boolean {
+  return (
+    !hasRequestedDraft &&
+    !hasDismissedResumePrompt &&
+    Boolean(latestDraftId)
+  );
+}
+
 export function getLatestDraftId(posts: readonly DraftCandidate[]): string | null {
   let latestDraft: DraftCandidate | null = null;
 

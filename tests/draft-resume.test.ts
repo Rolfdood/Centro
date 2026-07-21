@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   getDraftComposerHref,
   getLatestDraftId,
+  shouldOfferDraftResume,
 } from "../src/lib/posts/draft-resume";
 
 const draft = {
@@ -21,6 +22,13 @@ assert.equal(
   "the resume prompt selects the most recently updated server draft",
 );
 assert.equal(getLatestDraftId([]), null);
+assert.equal(shouldOfferDraftResume(false, false, draft.id), true);
+assert.equal(
+  shouldOfferDraftResume(false, true, "a-newly-saved-draft"),
+  false,
+  "starting a new draft suppresses the prompt for the rest of the session",
+);
+assert.equal(shouldOfferDraftResume(true, false, draft.id), false);
 assert.equal(getDraftComposerHref(draft), "/compose?id=draft-newer");
 assert.equal(
   getDraftComposerHref({ id: "published", status: "PUBLISHED" }),

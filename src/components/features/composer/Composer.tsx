@@ -10,7 +10,10 @@ import {
   usePublishPost,
   useSaveDraft,
 } from "@/lib/api";
-import { getLatestDraftId } from "@/lib/posts/draft-resume";
+import {
+  getLatestDraftId,
+  shouldOfferDraftResume,
+} from "@/lib/posts/draft-resume";
 import { validatePost } from "@/lib/platforms/constraints";
 import type { SaveDraftInput } from "@/lib/validations/post";
 import { useComposerStore } from "@/stores/composerStore";
@@ -42,7 +45,8 @@ export function Composer() {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [draftLoadError, setDraftLoadError] = useState<string | null>(null);
   const [isContinueEditingOpen, setIsContinueEditingOpen] = useState(false);
-  const [dismissedDraftId, setDismissedDraftId] = useState<string | null>(null);
+  const [hasDismissedResumePrompt, setHasDismissedResumePrompt] =
+    useState(false);
   const publishRequestedRef = useRef(false);
   const draftSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const saveDraftSnapshotRef = useRef<() => Promise<unknown>>(
@@ -152,6 +156,7 @@ export function Composer() {
     beginNewDraft();
     setDraftLoadError(null);
     setIsContinueEditingOpen(false);
+    setHasDismissedResumePrompt(false);
   }, [beginNewDraft, requestedDraftId]);
 
   useEffect(() => {
@@ -177,15 +182,17 @@ export function Composer() {
 
   useEffect(() => {
     if (
-      hasRequestedDraft ||
-      !recentDraft.data ||
-      recentDraft.data.id === dismissedDraftId
+      !shouldOfferDraftResume(
+        hasRequestedDraft,
+        hasDismissedResumePrompt,
+        recentDraft.data?.id,
+      )
     ) {
       return;
     }
 
     setIsContinueEditingOpen(true);
-  }, [dismissedDraftId, hasRequestedDraft, recentDraft.data]);
+  }, [hasDismissedResumePrompt, hasRequestedDraft, recentDraft.data?.id]);
 
   useEffect(() => {
     if (!isContinueEditingOpen) {
@@ -194,7 +201,7 @@ export function Composer() {
 
     const timeout = window.setTimeout(() => {
       setIsContinueEditingOpen(false);
-      setDismissedDraftId(recentDraft.data?.id ?? null);
+      setHasDismissedResumePrompt(true);
     }, 7000);
 
     return () => window.clearTimeout(timeout);
@@ -202,8 +209,8 @@ export function Composer() {
 
   const dismissRecentDraft = useCallback(() => {
     setIsContinueEditingOpen(false);
-    setDismissedDraftId(recentDraft.data?.id ?? null);
-  }, [recentDraft.data?.id]);
+    setHasDismissedResumePrompt(true);
+  }, []);
 
   const continueRecentDraft = useCallback(() => {
     if (!recentDraft.data || !loadDraft(recentDraft.data)) {
