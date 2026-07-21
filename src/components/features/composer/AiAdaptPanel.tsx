@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LoaderCircle, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -24,6 +24,7 @@ import type {
 import {
   getAiAdaptationTargets,
   getEditedAiRegenerationCount,
+  getQuotaUnavailableMessage,
   getRequestedAiGenerationCount,
 } from "./aiAdaptPanelLogic";
 import { ToneSelector } from "./ToneSelector";
@@ -66,13 +67,19 @@ export function AiAdaptPanel({
   const [adaptationError, setAdaptationError] = useState<string | null>(null);
   const quota = aiQuota.data?.quota;
   const quotaReached = quota?.remaining === 0;
+  const canUseSharedCaption = variants.length > 1;
+  const effectiveSharedCaption = sharedCaption && canUseSharedCaption;
   const requestedGenerationCount = getRequestedAiGenerationCount(
     variants,
-    sharedCaption,
+    effectiveSharedCaption,
   );
   const pendingEditedCount = pendingRegenerationTargets
     ? getEditedAiRegenerationCount(pendingRegenerationTargets)
     : 0;
+  const quotaUnavailableMessage = getQuotaUnavailableMessage({
+    quotaReached,
+    sharedCaption: effectiveSharedCaption,
+  });
   const quotaCannotAdapt =
     quota !== undefined && quota.remaining < requestedGenerationCount;
   const canAdapt =
@@ -83,6 +90,12 @@ export function AiAdaptPanel({
     !aiQuota.isLoading &&
     !aiQuota.isError &&
     !quotaCannotAdapt;
+
+  useEffect(() => {
+    if (!canUseSharedCaption && sharedCaption) {
+      setSharedCaption(false);
+    }
+  }, [canUseSharedCaption, sharedCaption]);
 
   async function adaptVariants(variantsToAdapt: ComposerVariant[]) {
     if (
@@ -110,7 +123,7 @@ export function AiAdaptPanel({
           hasImages: media.some((item) => item.type === "IMAGE"),
           hasVideo: media.some((item) => item.type === "VIDEO"),
         },
-        sharedCaption,
+        sharedCaption: effectiveSharedCaption,
       });
       queryClient.setQueryData(["ai", "adaptation-quota"], {
         quota: result.quota,
@@ -156,7 +169,7 @@ export function AiAdaptPanel({
     const targets = getAiAdaptationTargets({
       variants,
       requestedVariant: variant,
-      sharedCaption,
+      sharedCaption: effectiveSharedCaption,
     });
     if (targets.some(requiresAiRegenerationConfirmation)) {
       setPendingRegenerationTargets(targets);
@@ -204,7 +217,7 @@ export function AiAdaptPanel({
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             {variants.length > 0
-              ? sharedCaption
+              ? effectiveSharedCaption
                 ? `Generate one suggestion for ${variants.length} selected ${variants.length === 1 ? "platform" : "platforms"}.`
                 : `Generate suggestions for ${variants.length} selected ${variants.length === 1 ? "platform" : "platforms"}.`
               : "Select a platform to generate a suggestion."}
@@ -217,9 +230,7 @@ export function AiAdaptPanel({
               aria-describedby="ai-adaptation-help"
               title={
                 quotaCannotAdapt
-                  ? quotaReached
-                    ? "Daily AI adaptation limit reached. Try again later."
-                    : "There are not enough AI adaptations remaining for the selected platforms."
+                  ? quotaUnavailableMessage
                   : undefined
               }
               className="w-full sm:w-auto"
@@ -244,24 +255,30 @@ export function AiAdaptPanel({
             type="checkbox"
             checked={sharedCaption}
             onChange={(event) => setSharedCaption(event.target.checked)}
-            disabled={adaptPost.isPending || adaptingRef.current}
+            disabled={
+              adaptPost.isPending ||
+              adaptingRef.current ||
+              !canUseSharedCaption
+            }
             className="mt-0.5 size-4 rounded border-input text-primary accent-primary"
           />
           <span className="min-w-0">
             <span className="block text-sm font-medium text-foreground">
-              Same caption on all platforms
+              {canUseSharedCaption
+                ? "Same caption on all platforms"
+                : "Shared caption available with multiple platforms"}
             </span>
             <span className="block text-xs text-muted-foreground">
-              One AI draft, reviewed against each selected platform.
+              {canUseSharedCaption
+                ? "One AI draft, reviewed against each selected platform."
+                : "Select at least two platforms to generate one shared caption."}
             </span>
           </span>
         </label>
 
         {quotaCannotAdapt ? (
           <p className="mt-3 text-sm text-muted-foreground" role="status">
-            {quotaReached
-              ? "Daily AI adaptation limit reached. Try again later."
-              : "There are not enough AI adaptations remaining for the selected platforms."}
+            {quotaUnavailableMessage}
           </p>
         ) : null}
 
@@ -292,7 +309,7 @@ export function AiAdaptPanel({
 
       {children({
         generatingAccountIds,
-        sharedCaption,
+        sharedCaption: effectiveSharedCaption,
         onRegenerate: requestRegeneration,
       })}
 

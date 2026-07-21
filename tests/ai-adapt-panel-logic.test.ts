@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   getAiAdaptationTargets,
   getEditedAiRegenerationCount,
+  getQuotaUnavailableMessage,
   getRequestedAiGenerationCount,
 } from "../src/components/features/composer/aiAdaptPanelLogic";
 import type { ComposerVariant } from "../src/stores/composerStore";
@@ -29,6 +30,18 @@ const variants = [
 assert.equal(getRequestedAiGenerationCount([], true), 0);
 assert.equal(getRequestedAiGenerationCount(variants, true), 1);
 assert.equal(getRequestedAiGenerationCount(variants, false), 2);
+assert.equal(
+  getQuotaUnavailableMessage({ quotaReached: false, sharedCaption: true }),
+  "There are not enough AI adaptations remaining for a shared caption.",
+);
+assert.equal(
+  getQuotaUnavailableMessage({ quotaReached: false, sharedCaption: false }),
+  "There are not enough AI adaptations remaining for the selected platforms.",
+);
+assert.equal(
+  getQuotaUnavailableMessage({ quotaReached: true, sharedCaption: true }),
+  "Daily AI adaptation limit reached. Try again later.",
+);
 
 assert.deepEqual(
   getAiAdaptationTargets({

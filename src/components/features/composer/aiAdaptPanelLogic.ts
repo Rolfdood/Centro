@@ -34,3 +34,19 @@ export function getEditedAiRegenerationCount(
 ): number {
   return variants.filter((variant) => variant.isManuallyEdited).length;
 }
+
+export function getQuotaUnavailableMessage({
+  quotaReached,
+  sharedCaption,
+}: {
+  quotaReached: boolean;
+  sharedCaption: boolean;
+}): string {
+  if (quotaReached) {
+    return "Daily AI adaptation limit reached. Try again later.";
+  }
+
+  return sharedCaption
+    ? "There are not enough AI adaptations remaining for a shared caption."
+    : "There are not enough AI adaptations remaining for the selected platforms.";
+}

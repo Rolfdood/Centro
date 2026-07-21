@@ -11,17 +11,6 @@ export const COMPOSER_TONES = [
 
 export const aiToneSchema = z.enum(COMPOSER_TONES);
 
-export const adaptPostRequestSchema = z.object({
-  baseText: z.string().trim().min(1),
-  platforms: z.array(z.enum(PLATFORMS)).min(1),
-  tone: aiToneSchema,
-  media: z.object({
-    hasImages: z.boolean(),
-    hasVideo: z.boolean(),
-  }),
-  sharedCaption: z.boolean().default(false),
-});
-
 export const aiMediaSchema = z.object({
   hasImages: z.boolean().default(false),
   hasVideo: z.boolean().default(false),
@@ -70,7 +59,6 @@ export const aiAdaptationQuotaResponseSchema = z.object({
   quota: aiAdaptationQuotaSchema,
 });
 
-export type AdaptPostRequest = z.infer<typeof adaptPostRequestSchema>;
 export type AiTone = z.infer<typeof aiToneSchema>;
 export type AiAdaptRequest = z.infer<typeof aiAdaptRequestSchema>;
 export type AiVariant = z.infer<typeof aiVariantSchema>;
