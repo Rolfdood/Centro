@@ -128,6 +128,10 @@ export function Composer() {
     }),
     [baseText, idempotencyKey, media, selectedVariants],
   );
+  const draftSnapshot = useMemo(
+    () => (hasDraftContent ? JSON.stringify(createDraftInput()) : null),
+    [createDraftInput, hasDraftContent],
+  );
   const saveDraftSnapshot = useCallback(() => {
     if (!hasDraftContent) {
       return Promise.resolve(null);
@@ -223,16 +227,16 @@ export function Composer() {
   }, [dismissRecentDraft, loadDraft, recentDraft.data]);
 
   useEffect(() => {
-    if (!hasDraftContent) {
+    if (!draftSnapshot) {
       return;
     }
 
     const timeout = window.setTimeout(() => {
-      void saveDraftSnapshot().catch(() => undefined);
+      void saveDraftSnapshotRef.current().catch(() => undefined);
     }, 600);
 
     return () => window.clearTimeout(timeout);
-  }, [hasDraftContent, saveDraftSnapshot]);
+  }, [draftSnapshot]);
 
   useEffect(
     () => () => {
