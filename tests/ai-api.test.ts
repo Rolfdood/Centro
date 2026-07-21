@@ -7,6 +7,7 @@ import {
 } from "../src/lib/ai/route-handlers";
 import type { AiAdaptInput } from "../src/lib/ai/provider";
 import { createGroqProvider } from "../src/lib/ai/groq";
+import { createOpenAiProvider } from "../src/lib/ai/openai";
 import { defaultAiProvider } from "../src/lib/ai/registry";
 import { assertSafeSocialCopy } from "../src/lib/ai/safety";
 import { getConstraints } from "../src/lib/platforms/constraints";
@@ -246,6 +247,32 @@ async function run(): Promise<void> {
   assert.equal(groqPayload.tools, undefined);
   assert.equal(groqPayload.functions, undefined);
 
+  let openAiRequest: Request | undefined;
+  const openAiProvider = createOpenAiProvider({
+    apiKey: "openai-key",
+    fetcher: async (input, init) => {
+      openAiRequest = new Request(input, init);
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: "OpenAI variant" } }],
+      }), { status: 200 });
+    },
+  });
+  assert.equal(await openAiProvider.adapt({
+    baseText: "Hello", platform: "X", tone: "professional",
+    media: { hasImages: false, hasVideo: false }, constraints: getConstraints("X"),
+  }), "OpenAI variant");
+  assert.equal(openAiProvider.model, "gpt-4o-mini");
+  assert.equal(openAiRequest?.url, "https://api.openai.com/v1/chat/completions");
+  assert.equal(openAiRequest?.headers.get("Authorization"), "Bearer openai-key");
+  const openAiPayload = await openAiRequest?.json() as {
+    messages: Array<{ role: string; content: string }>;
+    tools?: unknown;
+    functions?: unknown;
+  };
+  assert.deepEqual(openAiPayload.messages.map((message) => message.role), ["system", "user"]);
+  assert.equal(openAiPayload.tools, undefined);
+  assert.equal(openAiPayload.functions, undefined);
+
   assert.doesNotThrow(() => assertSafeSocialCopy("Our API integration is live today."));
   assert.doesNotThrow(() => assertSafeSocialCopy("class is in session today!"));
   for (const safeSocialCopy of [
@@ -271,15 +298,25 @@ async function run(): Promise<void> {
   }
 
   const previousEnvironment = {
+    AI_PROVIDER: process.env.AI_PROVIDER,
+    AI_MODEL: process.env.AI_MODEL,
     GROQ_API_KEY: process.env.GROQ_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    GROQ_MODEL: process.env.GROQ_MODEL,
   };
   try {
+    delete process.env.AI_PROVIDER;
+    delete process.env.AI_MODEL;
     process.env.GROQ_API_KEY = "";
-    process.env.OPENAI_API_KEY = "openai-key";
-    process.env.GROQ_MODEL = "groq-model";
+    process.env.OPENAI_API_KEY = "";
+    assert.equal(defaultAiProvider().model, "gpt-4o-mini");
+    process.env.AI_PROVIDER = "groq";
+    process.env.AI_MODEL = "groq-model";
     assert.equal(defaultAiProvider().model, "groq-model");
+    process.env.AI_PROVIDER = "openai";
+    process.env.AI_MODEL = "openai-model";
+    assert.equal(defaultAiProvider().model, "openai-model");
+    process.env.AI_PROVIDER = "unsupported";
+    assert.throws(() => defaultAiProvider(), /unsupported AI provider/i);
   } finally {
     for (const [name, value] of Object.entries(previousEnvironment)) {
       if (value === undefined) delete process.env[name];

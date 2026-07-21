@@ -10,14 +10,13 @@ import {
   buildAdaptPostSystemPrompt,
 } from "@/lib/ai/prompts/adaptPost";
 
-const GROQ_CHAT_COMPLETIONS_URL =
-  "https://api.groq.com/openai/v1/chat/completions";
+const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 
-export function createGroqProvider(
+export function createOpenAiProvider(
   options: { apiKey?: string; model?: string; fetcher?: typeof fetch } = {},
 ): AIProvider {
-  const apiKey = options.apiKey ?? process.env.GROQ_API_KEY;
-  const model = options.model ?? process.env.AI_MODEL ?? "llama-3.3-70b-versatile";
+  const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
+  const model = options.model ?? process.env.AI_MODEL ?? "gpt-4o-mini";
   const fetcher = options.fetcher ?? fetch;
 
   return {
@@ -27,7 +26,7 @@ export function createGroqProvider(
 
       let response: Response;
       try {
-        response = await fetcher(GROQ_CHAT_COMPLETIONS_URL, {
+        response = await fetcher(OPENAI_CHAT_COMPLETIONS_URL, {
           method: "POST",
           signal: timeoutSignal(),
           headers: {
