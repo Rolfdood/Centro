@@ -9,6 +9,8 @@ interface PublishFooterProps {
   isValid: boolean;
   isPublishing: boolean;
   isUploading: boolean;
+  isSavingDraft: boolean;
+  draftSaveError: string | null;
   publishError: string | null;
   onInvalidAttempt: () => void;
   onPublish: () => void;
@@ -19,6 +21,8 @@ export function PublishFooter({
   isValid,
   isPublishing,
   isUploading,
+  isSavingDraft,
+  draftSaveError,
   publishError,
   onInvalidAttempt,
   onPublish,
@@ -30,7 +34,14 @@ export function PublishFooter({
     <footer className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
       <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="font-mono text-xs text-muted-foreground">Unsaved draft</p>
+          <p className="font-mono text-xs text-muted-foreground">
+            {isSavingDraft ? "Saving draft…" : "Drafts save automatically"}
+          </p>
+          {draftSaveError ? (
+            <p className="mt-1 text-xs text-destructive" role="alert">
+              {draftSaveError}
+            </p>
+          ) : null}
           {!hasSelectedPlatforms ? (
             <p className="mt-0.5 text-xs text-muted-foreground">
               Select at least one platform to continue.

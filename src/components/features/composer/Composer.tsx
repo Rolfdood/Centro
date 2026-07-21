@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { useAccounts, useCreatePost, usePublishPost } from "@/lib/api";
+import { useAccounts, usePublishPost, useSaveDraft } from "@/lib/api";
 import { validatePost } from "@/lib/platforms/constraints";
+import type { SaveDraftInput } from "@/lib/validations/post";
 import { useComposerStore } from "@/stores/composerStore";
 
 import { AiAdaptPanel } from "./AiAdaptPanel";
@@ -18,12 +19,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function Composer() {
   const router = useRouter();
   const { data: accounts = [], isLoading, isError } = useAccounts();
-  const createPost = useCreatePost();
+  const saveDraft = useSaveDraft();
   const publishPost = usePublishPost();
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [draftSaveError, setDraftSaveError] = useState<string | null>(null);
   const [isPublishSubmitted, setIsPublishSubmitted] = useState(false);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const publishRequestedRef = useRef(false);
+  const draftSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const saveDraftSnapshotRef = useRef<() => Promise<unknown>>(
+    () => Promise.resolve(),
+  );
+  const skipDraftSaveOnUnmountRef = useRef(false);
   const baseText = useComposerStore((state) => state.baseText);
   const selectedAccountIds = useComposerStore(
     (state) => state.selectedAccountIds,
@@ -76,8 +83,74 @@ export function Composer() {
       preventScroll: true,
     });
   }, [firstInvalidAccountId]);
-  const isPublishing =
-    isPublishSubmitted || createPost.isPending || publishPost.isPending;
+  const hasDraftContent =
+    baseText.trim().length > 0 || selectedVariants.length > 0 || media.length > 0;
+  const createDraftInput = useCallback(
+    (): SaveDraftInput => ({
+      idempotencyKey,
+      baseText,
+      targets: selectedVariants.map((variant) => ({
+        accountId: variant.accountId,
+        adaptedText: variant.adaptedText,
+      })),
+      media: media.map((asset, index) => ({
+        url: asset.url,
+        type: asset.type,
+        mimeType: asset.mimeType,
+        sizeBytes: asset.sizeBytes,
+        width: asset.width ?? null,
+        height: asset.height ?? null,
+        order: index,
+      })),
+    }),
+    [baseText, idempotencyKey, media, selectedVariants],
+  );
+  const saveDraftSnapshot = useCallback(() => {
+    if (!hasDraftContent) {
+      return Promise.resolve(null);
+    }
+
+    const input = createDraftInput();
+    const save = () => saveDraft.mutateAsync(input);
+    const result = draftSaveQueueRef.current.then(save, save);
+    draftSaveQueueRef.current = result.catch(() => undefined);
+
+    return result.then(
+      (post) => {
+        setDraftSaveError(null);
+        return post;
+      },
+      (error: unknown) => {
+        setDraftSaveError("We couldn’t save your draft. Please try again.");
+        throw error;
+      },
+    );
+  }, [createDraftInput, hasDraftContent, saveDraft]);
+
+  saveDraftSnapshotRef.current = saveDraftSnapshot;
+
+  useEffect(() => {
+    if (!hasDraftContent) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void saveDraftSnapshot().catch(() => undefined);
+    }, 600);
+
+    return () => window.clearTimeout(timeout);
+  }, [hasDraftContent, saveDraftSnapshot]);
+
+  useEffect(
+    () => () => {
+      if (!skipDraftSaveOnUnmountRef.current) {
+        void saveDraftSnapshotRef.current().catch(() => undefined);
+      }
+    },
+    [],
+  );
+
+  const isPublishing = isPublishSubmitted || publishPost.isPending;
   const handlePublish = useCallback(async () => {
     if (publishRequestedRef.current) {
       return;
@@ -93,26 +166,13 @@ export function Composer() {
     setIsPublishSubmitted(true);
 
     try {
-      const post = await createPost.mutateAsync({
-        idempotencyKey,
-        baseText,
-        targets: selectedVariants.map((variant) => ({
-          accountId: variant.accountId,
-          adaptedText: variant.adaptedText,
-        })),
-        media: media.map((asset, index) => ({
-          url: asset.url,
-          type: asset.type,
-          mimeType: asset.mimeType,
-          sizeBytes: asset.sizeBytes,
-          width: asset.width ?? null,
-          height: asset.height ?? null,
-          order: index,
-        })),
-        scheduledAt: null,
-      });
+      const post = await saveDraftSnapshot();
+      if (!post) {
+        throw new Error("A post cannot be published without draft content.");
+      }
       await publishPost.mutateAsync({ postId: post.id });
 
+      skipDraftSaveOnUnmountRef.current = true;
       beginNewDraft();
       router.push("/dashboard");
     } catch {
@@ -123,13 +183,10 @@ export function Composer() {
       );
     }
   }, [
-    baseText,
     beginNewDraft,
-    createPost,
-    idempotencyKey,
-    media,
     publishPost,
     router,
+    saveDraftSnapshot,
     scrollToFirstInvalidVariant,
     selectedVariants,
     variantsAreValid,
@@ -217,6 +274,8 @@ export function Composer() {
         isValid={variantsAreValid}
         isPublishing={isPublishing}
         isUploading={isUploadingMedia}
+        isSavingDraft={saveDraft.isPending}
+        draftSaveError={draftSaveError}
         publishError={publishError}
         onInvalidAttempt={scrollToFirstInvalidVariant}
         onPublish={handlePublish}
