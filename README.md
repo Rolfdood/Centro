@@ -99,10 +99,11 @@ The app uses **Auth.js / NextAuth v5** with credentials-based authentication:
 
 ## AI adaptation and mock publishing
 
-The adaptation endpoint uses `OPENAI_API_KEY` and `AI_MODEL` when an API key is
-configured. Without a key, Centro returns deterministic mock variants so the
-demo remains runnable offline. AI-generated text is always returned for review;
-it is never published automatically.
+The adaptation endpoint uses Groq's `llama-3.3-70b-versatile` model when
+`GROQ_API_KEY` is configured. Without a key, Centro returns deterministic mock
+variants so the demo remains runnable offline. AI-generated text is always
+returned for review; it is never published automatically. Set `GROQ_MODEL` to
+override the default model.
 
 Mock platform publishing is enabled by default with `MOCK_PLATFORMS="true"`.
 Set `MOCK_FAILURE_RATE` to a value between `0` and `1` before starting the app

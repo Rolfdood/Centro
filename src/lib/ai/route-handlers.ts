@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { getAuthenticatedUser } from "@/lib/auth";
 import { buildAdaptPostPrompt } from "@/lib/ai/prompts/adaptPost";
+import { assertSafeSocialCopy } from "@/lib/ai/safety";
 import { getConstraints, type Platform, validatePost } from "@/lib/platforms/constraints";
 import type { AIProvider, AiAdaptInput } from "@/lib/ai/provider";
 import {
@@ -137,6 +138,7 @@ export function createAiAdaptRouteHandler(
           constraints: getConstraints(platform),
         };
         const text = await dependencies.provider.adapt(input);
+        assertSafeSocialCopy(text);
         const validation = validatePost(platform, text, [
           ...(parsed.data.media.hasImages ? [{ type: "IMAGE" as const }] : []),
           ...(parsed.data.media.hasVideo ? [{ type: "VIDEO" as const }] : []),

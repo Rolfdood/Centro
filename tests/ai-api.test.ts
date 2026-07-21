@@ -6,7 +6,9 @@ import {
   type AiQuotaReservation,
 } from "../src/lib/ai/route-handlers";
 import type { AiAdaptInput } from "../src/lib/ai/provider";
-import { createOpenAiProvider } from "../src/lib/ai/openai";
+import { createGroqProvider } from "../src/lib/ai/groq";
+import { defaultAiProvider } from "../src/lib/ai/registry";
+import { assertSafeSocialCopy } from "../src/lib/ai/safety";
 import { getConstraints } from "../src/lib/platforms/constraints";
 import { aiAdaptResponseSchema } from "../src/lib/validations/ai";
 
@@ -126,6 +128,29 @@ async function run(): Promise<void> {
   assert.equal(failedResponse.status, 502);
   assert.deepEqual(await failedResponse.json(), { error: "AI adaptation failed." });
 
+  let unsafeGenerationReserved = false;
+  const unsafeOutputHandler = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: { model: "mock", adapt: async () => "```ts\nconst secret = 'x';\n```" },
+    countGenerationsSince: async () => 0,
+    reserveGenerations: async () => {
+      unsafeGenerationReserved = true;
+      return reserveFromEmptyQuota({ limit: 20, generations: [] });
+    },
+  });
+  console.error = () => undefined;
+  try {
+    const unsafeOutputResponse = await unsafeOutputHandler.POST(new Request("http://localhost", {
+      method: "POST",
+      body: JSON.stringify({ baseText: "Hello", platforms: ["X"] }),
+    }));
+    assert.equal(unsafeOutputResponse.status, 502);
+    assert.deepEqual(await unsafeOutputResponse.json(), { error: "AI adaptation failed." });
+  } finally {
+    console.error = originalConsoleError;
+  }
+  assert.equal(unsafeGenerationReserved, false);
+
   const empty = await handler.POST(new Request("http://localhost", {
     method: "POST",
     body: JSON.stringify({ baseText: "", platforms: ["X"] }),
@@ -192,12 +217,63 @@ async function run(): Promise<void> {
     quota: { used: 20, limit: 20, remaining: 0 },
   });
 
-  const fallback = createOpenAiProvider({ apiKey: "", model: "mock" });
-  const fallbackText = await fallback.adapt({
+  let groqRequest: Request | undefined;
+  const groqProvider = createGroqProvider({
+    apiKey: "groq-key",
+    model: "llama-3.3-70b-versatile",
+    fetcher: async (input, init) => {
+      groqRequest = new Request(input, init);
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: "Groq variant" } }],
+      }), { status: 200 });
+    },
+  });
+  assert.equal(await groqProvider.adapt({
     baseText: "Hello", platform: "X", tone: "professional",
     media: { hasImages: false, hasVideo: false }, constraints: getConstraints("X"),
-  });
-  assert.equal(fallbackText, "X: Hello");
+  }), "Groq variant");
+  assert.equal(groqRequest?.url, "https://api.groq.com/openai/v1/chat/completions");
+  assert.equal(groqRequest?.headers.get("Authorization"), "Bearer groq-key");
+  const groqPayload = await groqRequest?.json() as {
+    model: string;
+    messages: Array<{ role: string; content: string }>;
+    tools?: unknown;
+    functions?: unknown;
+  };
+  assert.equal(groqPayload.model, "llama-3.3-70b-versatile");
+  assert.deepEqual(groqPayload.messages.map((message) => message.role), ["system", "user"]);
+  assert.match(groqPayload.messages[0]?.content ?? "", /only finished social-media post copy/i);
+  assert.equal(groqPayload.tools, undefined);
+  assert.equal(groqPayload.functions, undefined);
+
+  assert.doesNotThrow(() => assertSafeSocialCopy("Our API integration is live today."));
+  for (const unsafeText of [
+    "```ts\nconst answer = 42;\n```",
+    "<script>alert('x')</script>",
+    "curl https://example.com/deploy",
+    "import secret from './secret'",
+  ]) {
+    assert.throws(() => assertSafeSocialCopy(unsafeText), /unsafe executable syntax/i);
+  }
+
+  const previousEnvironment = {
+    GROQ_API_KEY: process.env.GROQ_API_KEY,
+    OPENCODE_API_KEY: process.env.OPENCODE_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    GROQ_MODEL: process.env.GROQ_MODEL,
+  };
+  try {
+    process.env.GROQ_API_KEY = "";
+    process.env.OPENCODE_API_KEY = "opencode-key";
+    process.env.OPENAI_API_KEY = "openai-key";
+    process.env.GROQ_MODEL = "groq-model";
+    assert.equal(defaultAiProvider().model, "groq-model");
+  } finally {
+    for (const [name, value] of Object.entries(previousEnvironment)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
 
   console.log("AI API tests passed.");
 }
