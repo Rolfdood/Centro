@@ -125,6 +125,36 @@ async function run(): Promise<void> {
   assert.match(sharedGenerations[0]?.prompt ?? "", /unchanged on: X, LINKEDIN/);
   assert.match(sharedGenerations[0]?.prompt ?? "", /below 280 characters/);
 
+  const singlePlatformSharedGenerations: AiGenerationInput[] = [];
+  const singlePlatformShared = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: { model: "mock", adapt: async () => "Single shared copy" },
+    countGenerationsSince: async () => 0,
+    reserveGenerations: reserveInMemory(singlePlatformSharedGenerations),
+  });
+  const singlePlatformSharedResponse = await singlePlatformShared.POST(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Hello",
+      platforms: ["X"],
+      sharedCaption: true,
+    }),
+  }));
+  assert.equal(singlePlatformSharedResponse.status, 200);
+  const singlePlatformSharedPayload = aiAdaptResponseSchema.parse(
+    await singlePlatformSharedResponse.json(),
+  );
+  assert.deepEqual(
+    singlePlatformSharedPayload.variants.map((variant) => ({
+      platform: variant.platform,
+      text: variant.text,
+    })),
+    [{ platform: "X", text: "Single shared copy" }],
+  );
+  assert.equal(singlePlatformSharedPayload.quota.remaining, 19);
+  assert.equal(singlePlatformSharedGenerations.length, 1);
+  assert.equal(singlePlatformSharedGenerations[0]?.platform, "X");
+
   const sharedTieGenerations: AiGenerationInput[] = [];
   const sharedTieBreaker = createAiAdaptRouteHandler({
     getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
