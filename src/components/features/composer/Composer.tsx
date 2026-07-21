@@ -348,7 +348,7 @@ export function Composer() {
           onToneChange={setTone}
           onGenerated={setAiVariant}
         >
-          {({ generatingAccountIds, onRegenerate }) =>
+          {({ generatingAccountIds, sharedCaption, onRegenerate }) =>
             selectedVariants.length > 0 ? (
               <section className="space-y-4" aria-label="Platform variations">
                 {selectedVariants.map((variant) => (
@@ -358,6 +358,7 @@ export function Composer() {
                     media={media}
                     errors={validations.get(variant.accountId)?.errors ?? []}
                     isGenerating={generatingAccountIds.has(variant.accountId)}
+                    usesSharedCaption={sharedCaption}
                     onChange={(adaptedText) =>
                       setVariantText(variant.accountId, adaptedText)
                     }

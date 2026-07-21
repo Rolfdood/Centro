@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LoaderCircle, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -21,6 +21,12 @@ import type {
   ComposerVariant,
 } from "@/stores/composerStore";
 
+import {
+  getAiAdaptationTargets,
+  getEditedAiRegenerationCount,
+  getQuotaUnavailableMessage,
+  getRequestedAiGenerationCount,
+} from "./aiAdaptPanelLogic";
 import { ToneSelector } from "./ToneSelector";
 
 interface AiAdaptPanelProps {
@@ -35,6 +41,7 @@ interface AiAdaptPanelProps {
 
 export interface AiAdaptPanelControls {
   generatingAccountIds: ReadonlySet<string>;
+  sharedCaption: boolean;
   onRegenerate: (variant: ComposerVariant) => void;
 }
 
@@ -51,17 +58,28 @@ export function AiAdaptPanel({
   const aiQuota = useAiAdaptationQuota();
   const queryClient = useQueryClient();
   const adaptingRef = useRef(false);
-  const [pendingRegeneration, setPendingRegeneration] =
-    useState<ComposerVariant | null>(null);
+  const [sharedCaption, setSharedCaption] = useState(false);
+  const [pendingRegenerationTargets, setPendingRegenerationTargets] =
+    useState<ComposerVariant[] | null>(null);
   const [generatingAccountIds, setGeneratingAccountIds] = useState<
     ReadonlySet<string>
   >(new Set());
   const [adaptationError, setAdaptationError] = useState<string | null>(null);
   const quota = aiQuota.data?.quota;
   const quotaReached = quota?.remaining === 0;
-  const requestedGenerationCount = new Set(
-    variants.map((variant) => variant.platform),
-  ).size;
+  const canUseSharedCaption = variants.length > 1;
+  const effectiveSharedCaption = sharedCaption && canUseSharedCaption;
+  const requestedGenerationCount = getRequestedAiGenerationCount(
+    variants,
+    effectiveSharedCaption,
+  );
+  const pendingEditedCount = pendingRegenerationTargets
+    ? getEditedAiRegenerationCount(pendingRegenerationTargets)
+    : 0;
+  const quotaUnavailableMessage = getQuotaUnavailableMessage({
+    quotaReached,
+    sharedCaption: effectiveSharedCaption,
+  });
   const quotaCannotAdapt =
     quota !== undefined && quota.remaining < requestedGenerationCount;
   const canAdapt =
@@ -72,6 +90,12 @@ export function AiAdaptPanel({
     !aiQuota.isLoading &&
     !aiQuota.isError &&
     !quotaCannotAdapt;
+
+  useEffect(() => {
+    if (!canUseSharedCaption && sharedCaption) {
+      setSharedCaption(false);
+    }
+  }, [canUseSharedCaption, sharedCaption]);
 
   async function adaptVariants(variantsToAdapt: ComposerVariant[]) {
     if (
@@ -99,6 +123,7 @@ export function AiAdaptPanel({
           hasImages: media.some((item) => item.type === "IMAGE"),
           hasVideo: media.some((item) => item.type === "VIDEO"),
         },
+        sharedCaption: effectiveSharedCaption,
       });
       queryClient.setQueryData(["ai", "adaptation-quota"], {
         quota: result.quota,
@@ -141,22 +166,27 @@ export function AiAdaptPanel({
       return;
     }
 
-    if (requiresAiRegenerationConfirmation(variant)) {
-      setPendingRegeneration(variant);
+    const targets = getAiAdaptationTargets({
+      variants,
+      requestedVariant: variant,
+      sharedCaption: effectiveSharedCaption,
+    });
+    if (targets.some(requiresAiRegenerationConfirmation)) {
+      setPendingRegenerationTargets(targets);
       return;
     }
 
-    void adaptVariants([variant]);
+    void adaptVariants(targets);
   }
 
   function confirmRegeneration() {
-    if (!pendingRegeneration) {
+    if (!pendingRegenerationTargets) {
       return;
     }
 
-    const variant = pendingRegeneration;
-    setPendingRegeneration(null);
-    void adaptVariants([variant]);
+    const targets = pendingRegenerationTargets;
+    setPendingRegenerationTargets(null);
+    void adaptVariants(targets);
   }
 
   return (
@@ -187,7 +217,9 @@ export function AiAdaptPanel({
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             {variants.length > 0
-              ? `Generate suggestions for ${variants.length} selected ${variants.length === 1 ? "platform" : "platforms"}.`
+              ? effectiveSharedCaption
+                ? `Generate one suggestion for ${variants.length} selected ${variants.length === 1 ? "platform" : "platforms"}.`
+                : `Generate suggestions for ${variants.length} selected ${variants.length === 1 ? "platform" : "platforms"}.`
               : "Select a platform to generate a suggestion."}
           </p>
           <div className="w-full space-y-1 sm:w-auto sm:text-right">
@@ -198,9 +230,7 @@ export function AiAdaptPanel({
               aria-describedby="ai-adaptation-help"
               title={
                 quotaCannotAdapt
-                  ? quotaReached
-                    ? "Daily AI adaptation limit reached. Try again later."
-                    : "There are not enough AI adaptations remaining for the selected platforms."
+                  ? quotaUnavailableMessage
                   : undefined
               }
               className="w-full sm:w-auto"
@@ -220,11 +250,35 @@ export function AiAdaptPanel({
           </div>
         </div>
 
+        <label className="mt-4 flex items-start gap-3 rounded-md border border-border bg-background/50 px-3 py-2.5">
+          <input
+            type="checkbox"
+            checked={sharedCaption}
+            onChange={(event) => setSharedCaption(event.target.checked)}
+            disabled={
+              adaptPost.isPending ||
+              adaptingRef.current ||
+              !canUseSharedCaption
+            }
+            className="mt-0.5 size-4 rounded border-input text-primary accent-primary"
+          />
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-foreground">
+              {canUseSharedCaption
+                ? "Same caption on all platforms"
+                : "Shared caption available with multiple platforms"}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {canUseSharedCaption
+                ? "One AI draft, reviewed against each selected platform."
+                : "Select at least two platforms to generate one shared caption."}
+            </span>
+          </span>
+        </label>
+
         {quotaCannotAdapt ? (
           <p className="mt-3 text-sm text-muted-foreground" role="status">
-            {quotaReached
-              ? "Daily AI adaptation limit reached. Try again later."
-              : "There are not enough AI adaptations remaining for the selected platforms."}
+            {quotaUnavailableMessage}
           </p>
         ) : null}
 
@@ -253,13 +307,17 @@ export function AiAdaptPanel({
         ) : null}
       </section>
 
-      {children({ generatingAccountIds, onRegenerate: requestRegeneration })}
+      {children({
+        generatingAccountIds,
+        sharedCaption: effectiveSharedCaption,
+        onRegenerate: requestRegeneration,
+      })}
 
       <Dialog
-        open={pendingRegeneration !== null}
+        open={pendingRegenerationTargets !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setPendingRegeneration(null);
+            setPendingRegenerationTargets(null);
           }
         }}
       >
@@ -267,15 +325,16 @@ export function AiAdaptPanel({
           <DialogHeader>
             <DialogTitle>Replace your edits?</DialogTitle>
             <DialogDescription>
-              Regenerating this variant will replace the edits you made with a
-              new AI suggestion.
+              {pendingEditedCount > 1
+                ? `Regenerating will replace edits in ${pendingEditedCount} captions with a new AI suggestion.`
+                : "Regenerating this variant will replace the edits you made with a new AI suggestion."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => setPendingRegeneration(null)}
+              onClick={() => setPendingRegenerationTargets(null)}
             >
               Keep edits
             </Button>

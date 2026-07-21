@@ -86,6 +86,187 @@ async function run(): Promise<void> {
   );
   assert.match(generations[0]?.prompt ?? "", /Adapt this social post for X/);
 
+  const sharedGenerations: AiGenerationInput[] = [];
+  const sharedProviderInputs: AiAdaptInput[] = [];
+  const sharedHandler = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: {
+      model: "mock",
+      adapt: async (input: AiAdaptInput) => {
+        sharedProviderInputs.push(input);
+        return sharedProviderInputs.length === 1
+          ? "Shared launch copy"
+          : "Unexpected second generation";
+      },
+    },
+    countGenerationsSince: async () => sharedGenerations.length,
+    reserveGenerations: reserveInMemory(sharedGenerations),
+  });
+  const sharedResponse = await sharedHandler.POST(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Launch day is here",
+      platforms: ["X", "LINKEDIN"],
+      tone: "professional",
+      media: { hasImages: false, hasVideo: false },
+      sharedCaption: true,
+    }),
+  }));
+  assert.equal(sharedResponse.status, 200);
+  const sharedPayload = aiAdaptResponseSchema.parse(await sharedResponse.json());
+  assert.equal(sharedProviderInputs.length, 1);
+  assert.deepEqual(
+    sharedPayload.variants.map((variant) => variant.text),
+    ["Shared launch copy", "Shared launch copy"],
+  );
+  assert.equal(sharedPayload.quota.remaining, 19);
+  assert.equal(sharedGenerations.length, 1);
+  assert.equal(sharedGenerations[0]?.platform, "X");
+  assert.match(sharedGenerations[0]?.prompt ?? "", /unchanged on: X, LINKEDIN/);
+  assert.match(sharedGenerations[0]?.prompt ?? "", /below 280 characters/);
+
+  const singlePlatformSharedGenerations: AiGenerationInput[] = [];
+  const singlePlatformShared = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: { model: "mock", adapt: async () => "Single shared copy" },
+    countGenerationsSince: async () => 0,
+    reserveGenerations: reserveInMemory(singlePlatformSharedGenerations),
+  });
+  const singlePlatformSharedResponse = await singlePlatformShared.POST(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Hello",
+      platforms: ["X"],
+      sharedCaption: true,
+    }),
+  }));
+  assert.equal(singlePlatformSharedResponse.status, 200);
+  const singlePlatformSharedPayload = aiAdaptResponseSchema.parse(
+    await singlePlatformSharedResponse.json(),
+  );
+  assert.deepEqual(
+    singlePlatformSharedPayload.variants.map((variant) => ({
+      platform: variant.platform,
+      text: variant.text,
+    })),
+    [{ platform: "X", text: "Single shared copy" }],
+  );
+  assert.equal(singlePlatformSharedPayload.quota.remaining, 19);
+  assert.equal(singlePlatformSharedGenerations.length, 1);
+  assert.equal(singlePlatformSharedGenerations[0]?.platform, "X");
+
+  const sharedTieGenerations: AiGenerationInput[] = [];
+  const sharedTieBreaker = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: { model: "mock", adapt: async () => "Shared media copy" },
+    countGenerationsSince: async () => 0,
+    reserveGenerations: reserveInMemory(sharedTieGenerations),
+  });
+  const sharedTieResponse = await sharedTieBreaker.POST(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Hello",
+      platforms: ["TIKTOK", "INSTAGRAM"],
+      sharedCaption: true,
+      media: { hasImages: true, hasVideo: true },
+    }),
+  }));
+  assert.equal(sharedTieResponse.status, 200);
+  assert.equal(
+    sharedTieGenerations[0]?.platform,
+    "INSTAGRAM",
+    "equal character limits use PLATFORMS order for deterministic audit records",
+  );
+
+  const conflictingMedia = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: { model: "mock", adapt: async () => "Shared visual copy" },
+    countGenerationsSince: async () => 0,
+    reserveGenerations: reserveFromEmptyQuota,
+  });
+  const conflictingMediaResponse = await conflictingMedia.POST(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Hello",
+      platforms: ["X", "TIKTOK"],
+      sharedCaption: true,
+      media: { hasImages: true, hasVideo: false },
+    }),
+  }));
+  const conflictingMediaPayload = aiAdaptResponseSchema.parse(
+    await conflictingMediaResponse.json(),
+  );
+  assert.deepEqual(
+    conflictingMediaPayload.variants.map((variant) => ({
+      platform: variant.platform,
+      valid: variant.valid,
+    })),
+    [
+      { platform: "X", valid: true },
+      { platform: "TIKTOK", valid: false },
+    ],
+  );
+  assert.match(
+    conflictingMediaPayload.variants.find((variant) => variant.platform === "TIKTOK")?.errors.join(" ") ?? "",
+    /requires a video|does not support images/,
+  );
+
+  let sharedFailureReserved = false;
+  const sharedProviderFailure = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: { model: "mock", adapt: async () => { throw new Error("provider detail"); } },
+    countGenerationsSince: async () => 0,
+    reserveGenerations: async () => {
+      sharedFailureReserved = true;
+      return reserveFromEmptyQuota({ limit: 20, generations: [] });
+    },
+  });
+  const originalConsoleError = console.error;
+  console.error = () => undefined;
+  try {
+    const sharedProviderFailureResponse = await sharedProviderFailure.POST(new Request("http://localhost", {
+      method: "POST",
+      body: JSON.stringify({
+        baseText: "Hello",
+        platforms: ["X", "LINKEDIN"],
+        sharedCaption: true,
+      }),
+    }));
+    assert.equal(sharedProviderFailureResponse.status, 502);
+    assert.deepEqual(await sharedProviderFailureResponse.json(), {
+      error: "AI adaptation failed.",
+    });
+  } finally {
+    console.error = originalConsoleError;
+  }
+  assert.equal(sharedFailureReserved, false);
+
+  const sharedInvalidOutput = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: { model: "mock", adapt: async () => "x".repeat(281) },
+    countGenerationsSince: async () => 0,
+    reserveGenerations: reserveFromEmptyQuota,
+  });
+  const sharedInvalidResponse = await sharedInvalidOutput.POST(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Hello",
+      platforms: ["X", "LINKEDIN"],
+      sharedCaption: true,
+    }),
+  }));
+  const sharedInvalidPayload = aiAdaptResponseSchema.parse(await sharedInvalidResponse.json());
+  assert.deepEqual(
+    sharedInvalidPayload.variants.map((variant) => ({
+      platform: variant.platform,
+      valid: variant.valid,
+    })),
+    [
+      { platform: "X", valid: false },
+      { platform: "LINKEDIN", valid: true },
+    ],
+  );
+
   const partialMedia = await handler.POST(new Request("http://localhost", {
     method: "POST",
     body: JSON.stringify({
@@ -115,7 +296,7 @@ async function run(): Promise<void> {
     countGenerationsSince: async () => 0,
     reserveGenerations: reserveFromEmptyQuota,
   });
-  const originalConsoleError = console.error;
+  const originalConsoleErrorForProviderFailure = console.error;
   console.error = () => undefined;
   let failedResponse: Response;
   try {
@@ -124,7 +305,7 @@ async function run(): Promise<void> {
       body: JSON.stringify({ baseText: "Hello", platforms: ["X"] }),
     }));
   } finally {
-    console.error = originalConsoleError;
+    console.error = originalConsoleErrorForProviderFailure;
   }
   assert.equal(failedResponse.status, 502);
   assert.deepEqual(await failedResponse.json(), { error: "AI adaptation failed." });
@@ -198,6 +379,22 @@ async function run(): Promise<void> {
   }));
   assert.equal(atLimit.status, 200);
   assert.equal(usedGenerations, 20);
+
+  usedGenerations = 19;
+  const sharedAtLimit = await limitedHandler.POST(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Hello",
+      platforms: ["X", "LINKEDIN"],
+      sharedCaption: true,
+    }),
+  }));
+  assert.equal(sharedAtLimit.status, 200);
+  assert.equal(
+    usedGenerations,
+    20,
+    "shared mode consumes one generation with multiple platforms",
+  );
 
   const overLimit = await limitedHandler.POST(new Request("http://localhost", {
     method: "POST",

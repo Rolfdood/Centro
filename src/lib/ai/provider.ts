@@ -6,6 +6,7 @@ import type { AiTone } from "@/lib/validations/ai";
 export interface AiAdaptInput {
   baseText: string;
   platform: Platform;
+  targetPlatforms?: readonly Platform[];
   tone: AiTone;
   media: { hasImages: boolean; hasVideo: boolean };
   constraints: PlatformConstraints;
