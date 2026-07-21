@@ -6,7 +6,10 @@ import {
   type AiQuotaReservation,
 } from "../src/lib/ai/route-handlers";
 import type { AiAdaptInput } from "../src/lib/ai/provider";
+import { createGroqProvider } from "../src/lib/ai/groq";
 import { createOpenAiProvider } from "../src/lib/ai/openai";
+import { defaultAiProvider } from "../src/lib/ai/registry";
+import { assertSafeSocialCopy } from "../src/lib/ai/safety";
 import { getConstraints } from "../src/lib/platforms/constraints";
 import { aiAdaptResponseSchema } from "../src/lib/validations/ai";
 
@@ -126,6 +129,29 @@ async function run(): Promise<void> {
   assert.equal(failedResponse.status, 502);
   assert.deepEqual(await failedResponse.json(), { error: "AI adaptation failed." });
 
+  let unsafeGenerationReserved = false;
+  const unsafeOutputHandler = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: { model: "mock", adapt: async () => "```ts\nconst secret = 'x';\n```" },
+    countGenerationsSince: async () => 0,
+    reserveGenerations: async () => {
+      unsafeGenerationReserved = true;
+      return reserveFromEmptyQuota({ limit: 20, generations: [] });
+    },
+  });
+  console.error = () => undefined;
+  try {
+    const unsafeOutputResponse = await unsafeOutputHandler.POST(new Request("http://localhost", {
+      method: "POST",
+      body: JSON.stringify({ baseText: "Hello", platforms: ["X"] }),
+    }));
+    assert.equal(unsafeOutputResponse.status, 502);
+    assert.deepEqual(await unsafeOutputResponse.json(), { error: "AI adaptation failed." });
+  } finally {
+    console.error = originalConsoleError;
+  }
+  assert.equal(unsafeGenerationReserved, false);
+
   const empty = await handler.POST(new Request("http://localhost", {
     method: "POST",
     body: JSON.stringify({ baseText: "", platforms: ["X"] }),
@@ -192,12 +218,111 @@ async function run(): Promise<void> {
     quota: { used: 20, limit: 20, remaining: 0 },
   });
 
-  const fallback = createOpenAiProvider({ apiKey: "", model: "mock" });
-  const fallbackText = await fallback.adapt({
+  let groqRequest: Request | undefined;
+  const groqProvider = createGroqProvider({
+    apiKey: "groq-key",
+    model: "llama-3.3-70b-versatile",
+    fetcher: async (input, init) => {
+      groqRequest = new Request(input, init);
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: "Groq variant" } }],
+      }), { status: 200 });
+    },
+  });
+  assert.equal(await groqProvider.adapt({
     baseText: "Hello", platform: "X", tone: "professional",
     media: { hasImages: false, hasVideo: false }, constraints: getConstraints("X"),
+  }), "Groq variant");
+  assert.equal(groqRequest?.url, "https://api.groq.com/openai/v1/chat/completions");
+  assert.equal(groqRequest?.headers.get("Authorization"), "Bearer groq-key");
+  const groqPayload = await groqRequest?.json() as {
+    model: string;
+    messages: Array<{ role: string; content: string }>;
+    tools?: unknown;
+    functions?: unknown;
+  };
+  assert.equal(groqPayload.model, "llama-3.3-70b-versatile");
+  assert.deepEqual(groqPayload.messages.map((message) => message.role), ["system", "user"]);
+  assert.match(groqPayload.messages[0]?.content ?? "", /only finished social-media post copy/i);
+  assert.equal(groqPayload.tools, undefined);
+  assert.equal(groqPayload.functions, undefined);
+
+  let openAiRequest: Request | undefined;
+  const openAiProvider = createOpenAiProvider({
+    apiKey: "openai-key",
+    fetcher: async (input, init) => {
+      openAiRequest = new Request(input, init);
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: "OpenAI variant" } }],
+      }), { status: 200 });
+    },
   });
-  assert.equal(fallbackText, "X: Hello");
+  assert.equal(await openAiProvider.adapt({
+    baseText: "Hello", platform: "X", tone: "professional",
+    media: { hasImages: false, hasVideo: false }, constraints: getConstraints("X"),
+  }), "OpenAI variant");
+  assert.equal(openAiProvider.model, "gpt-4o-mini");
+  assert.equal(openAiRequest?.url, "https://api.openai.com/v1/chat/completions");
+  assert.equal(openAiRequest?.headers.get("Authorization"), "Bearer openai-key");
+  const openAiPayload = await openAiRequest?.json() as {
+    messages: Array<{ role: string; content: string }>;
+    tools?: unknown;
+    functions?: unknown;
+  };
+  assert.deepEqual(openAiPayload.messages.map((message) => message.role), ["system", "user"]);
+  assert.equal(openAiPayload.tools, undefined);
+  assert.equal(openAiPayload.functions, undefined);
+
+  assert.doesNotThrow(() => assertSafeSocialCopy("Our API integration is live today."));
+  assert.doesNotThrow(() => assertSafeSocialCopy("class is in session today!"));
+  for (const safeSocialCopy of [
+    "Const as a rock, our team stands firm.",
+    "Type fast, win big.",
+    "Import our values into your daily routine.",
+    "Export your ideas and inspire the community.",
+    "Node the date in your calendar.",
+    "Python is our mascot for today.",
+  ]) {
+    assert.doesNotThrow(() => assertSafeSocialCopy(safeSocialCopy));
+  }
+  for (const unsafeText of [
+    "```ts\nconst answer = 42;\n```",
+    "<script>alert('x')</script>",
+    "curl https://example.com/deploy",
+    "import secret from './secret'",
+    "export const answer = 42",
+    "pnpm install",
+    "class PostComposer {}",
+  ]) {
+    assert.throws(() => assertSafeSocialCopy(unsafeText), /unsafe executable syntax/i);
+  }
+
+  const previousEnvironment = {
+    AI_PROVIDER: process.env.AI_PROVIDER,
+    AI_MODEL: process.env.AI_MODEL,
+    GROQ_API_KEY: process.env.GROQ_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  };
+  try {
+    delete process.env.AI_PROVIDER;
+    delete process.env.AI_MODEL;
+    process.env.GROQ_API_KEY = "";
+    process.env.OPENAI_API_KEY = "";
+    assert.equal(defaultAiProvider().model, "gpt-4o-mini");
+    process.env.AI_PROVIDER = "groq";
+    process.env.AI_MODEL = "groq-model";
+    assert.equal(defaultAiProvider().model, "groq-model");
+    process.env.AI_PROVIDER = "openai";
+    process.env.AI_MODEL = "openai-model";
+    assert.equal(defaultAiProvider().model, "openai-model");
+    process.env.AI_PROVIDER = "unsupported";
+    assert.throws(() => defaultAiProvider(), /unsupported AI provider/i);
+  } finally {
+    for (const [name, value] of Object.entries(previousEnvironment)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
 
   console.log("AI API tests passed.");
 }

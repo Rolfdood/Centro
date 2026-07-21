@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { getAuthenticatedUser } from "@/lib/auth";
-import { defaultAiProvider } from "@/lib/ai/openai";
+import { defaultAiProvider } from "@/lib/ai/registry";
 import {
   createAiAdaptRouteHandler,
   type AiGenerationInput,
