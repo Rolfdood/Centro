@@ -10,13 +10,17 @@ export function buildAdaptPostSystemPrompt(): string {
 }
 
 export function buildAdaptPostPrompt(input: AiAdaptInput): string {
+  const targetPlatforms = input.targetPlatforms ?? [input.platform];
+  const targetInstruction = targetPlatforms.length > 1
+    ? `Adapt this social post for use unchanged on: ${targetPlatforms.join(", ")}.`
+    : `Adapt this social post for ${input.platform}.`;
   const mediaRules = [
     input.constraints.requiresImage ? "An image is required." : "",
     input.constraints.requiresVideo ? "A video is required." : "",
   ].filter(Boolean).join(" ");
 
   return [
-    `Adapt this social post for ${input.platform}.`,
+    targetInstruction,
     `Keep it at or below ${input.constraints.maxChars} characters.`,
     `Use a ${input.tone} tone.`,
     mediaRules,

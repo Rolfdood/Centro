@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import type { getAuthenticatedUser } from "@/lib/auth";
 import { buildAdaptPostPrompt } from "@/lib/ai/prompts/adaptPost";
 import { assertSafeSocialCopy } from "@/lib/ai/safety";
-import { getConstraints, type Platform, validatePost } from "@/lib/platforms/constraints";
+import {
+  getConstraints,
+  PLATFORMS,
+  type MediaValidationInput,
+  type Platform,
+  validatePost,
+} from "@/lib/platforms/constraints";
+import type { PlatformConstraints } from "@/lib/platforms/types";
 import type { AIProvider, AiAdaptInput } from "@/lib/ai/provider";
 import {
   aiAdaptationQuotaResponseSchema,
@@ -76,6 +83,60 @@ function quotaFor(
   };
 }
 
+function mediaValidationInput(
+  media: { hasImages: boolean; hasVideo: boolean },
+): MediaValidationInput[] {
+  return [
+    ...(media.hasImages ? [{ type: "IMAGE" as const }] : []),
+    ...(media.hasVideo ? [{ type: "VIDEO" as const }] : []),
+  ];
+}
+
+function strictestPlatformFor(platforms: readonly Platform[]): Platform {
+  const [firstPlatform, ...remainingPlatforms] = platforms;
+  if (!firstPlatform) {
+    throw new Error("At least one platform is required.");
+  }
+
+  return remainingPlatforms.reduce((strictestPlatform, platform) => {
+    const platformMaxChars = getConstraints(platform).maxChars;
+    const strictestMaxChars = getConstraints(strictestPlatform).maxChars;
+
+    if (platformMaxChars < strictestMaxChars) {
+      return platform;
+    }
+
+    if (
+      platformMaxChars === strictestMaxChars &&
+      PLATFORMS.indexOf(platform) < PLATFORMS.indexOf(strictestPlatform)
+    ) {
+      return platform;
+    }
+
+    return strictestPlatform;
+  }, firstPlatform);
+}
+
+function sharedConstraintsFor(
+  platforms: readonly Platform[],
+  strictestPlatform: Platform,
+): PlatformConstraints {
+  const strictestConstraints = getConstraints(strictestPlatform);
+
+  return {
+    ...strictestConstraints,
+    maxChars: Math.min(
+      ...platforms.map((platform) => getConstraints(platform).maxChars),
+    ),
+    requiresImage: platforms.some(
+      (platform) => getConstraints(platform).requiresImage,
+    ),
+    requiresVideo: platforms.some(
+      (platform) => getConstraints(platform).requiresVideo,
+    ),
+  };
+}
+
 export function createAiAdaptRouteHandler(
   dependencies: AiAdaptRouteDependencies,
 ) {
@@ -124,34 +185,84 @@ export function createAiAdaptRouteHandler(
 
     try {
       const quota = await getQuota(authentication.userId);
-      const requestedGenerations = parsed.data.platforms.length;
+      const requestedGenerations = parsed.data.sharedCaption
+        ? 1
+        : parsed.data.platforms.length;
       if (quota.used + requestedGenerations > quota.limit) {
         return quotaExceededResponse();
       }
 
-      const generatedVariants = await Promise.all(parsed.data.platforms.map(async (platform) => {
-        const input: AiAdaptInput = {
-          baseText: parsed.data.baseText,
-          platform,
-          tone: parsed.data.tone,
-          media: parsed.data.media,
-          constraints: getConstraints(platform),
-        };
-        const text = await dependencies.provider.adapt(input);
-        assertSafeSocialCopy(text);
-        const validation = validatePost(platform, text, [
-          ...(parsed.data.media.hasImages ? [{ type: "IMAGE" as const }] : []),
-          ...(parsed.data.media.hasVideo ? [{ type: "VIDEO" as const }] : []),
-        ]);
+      const mediaForValidation = mediaValidationInput(parsed.data.media);
+      const generatedVariants = parsed.data.sharedCaption
+        ? await (async () => {
+          const platform = strictestPlatformFor(parsed.data.platforms);
+          const input: AiAdaptInput = {
+            baseText: parsed.data.baseText,
+            platform,
+            targetPlatforms: parsed.data.platforms,
+            tone: parsed.data.tone,
+            media: parsed.data.media,
+            constraints: sharedConstraintsFor(parsed.data.platforms, platform),
+          };
+          const text = await dependencies.provider.adapt(input);
+          assertSafeSocialCopy(text);
+          const prompt = buildAdaptPostPrompt(input);
 
-        return {
-          platform,
-          text,
-          valid: validation.valid,
-          errors: validation.errors,
-          prompt: buildAdaptPostPrompt(input),
-        };
-      }));
+          return parsed.data.platforms.map((targetPlatform) => {
+            const validation = validatePost(
+              targetPlatform,
+              text,
+              mediaForValidation,
+            );
+
+            return {
+              platform: targetPlatform,
+              text,
+              valid: validation.valid,
+              errors: validation.errors,
+              prompt,
+              reservedPlatform: platform,
+            };
+          });
+        })()
+        : await Promise.all(parsed.data.platforms.map(async (platform) => {
+          const input: AiAdaptInput = {
+            baseText: parsed.data.baseText,
+            platform,
+            targetPlatforms: [platform],
+            tone: parsed.data.tone,
+            media: parsed.data.media,
+            constraints: getConstraints(platform),
+          };
+          const text = await dependencies.provider.adapt(input);
+          assertSafeSocialCopy(text);
+          const validation = validatePost(platform, text, mediaForValidation);
+
+          return {
+            platform,
+            text,
+            valid: validation.valid,
+            errors: validation.errors,
+            prompt: buildAdaptPostPrompt(input),
+            reservedPlatform: platform,
+          };
+        }));
+
+      const generations = parsed.data.sharedCaption
+        ? generatedVariants.slice(0, 1).map((variant) => ({
+          userId: authentication.userId,
+          platform: variant.reservedPlatform,
+          prompt: variant.prompt,
+          output: variant.text,
+          model: dependencies.provider.model,
+        }))
+        : generatedVariants.map((variant) => ({
+          userId: authentication.userId,
+          platform: variant.platform,
+          prompt: variant.prompt,
+          output: variant.text,
+          model: dependencies.provider.model,
+        }));
 
       const reservation = await dependencies.reserveGenerations({
         userId: authentication.userId,
@@ -159,18 +270,16 @@ export function createAiAdaptRouteHandler(
           (dependencies.now ?? (() => new Date()))().getTime() - DAY_IN_MS,
         ),
         limit: quota.limit,
-        generations: generatedVariants.map(({ platform, text, prompt }) => ({
-          userId: authentication.userId,
-          platform,
-          prompt,
-          output: text,
-          model: dependencies.provider.model,
-        })),
+        generations,
       });
       if (!reservation.allowed) return quotaExceededResponse();
 
       return NextResponse.json(aiAdaptResponseSchema.parse({
-        variants: generatedVariants.map(({ prompt: _prompt, ...variant }) => variant),
+        variants: generatedVariants.map(({
+          prompt: _prompt,
+          reservedPlatform: _reservedPlatform,
+          ...variant
+        }) => variant),
         model: dependencies.provider.model,
         quota: reservation.quota,
       }));

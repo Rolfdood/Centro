@@ -20,6 +20,7 @@ interface PlatformVariantCardProps {
   media: ComposerMedia[];
   errors: string[];
   isGenerating: boolean;
+  usesSharedCaption: boolean;
   onChange: (value: string) => void;
   onRegenerate: () => void;
 }
@@ -29,6 +30,7 @@ export function PlatformVariantCard({
   media,
   errors,
   isGenerating,
+  usesSharedCaption,
   onChange,
   onRegenerate,
 }: PlatformVariantCardProps) {
@@ -37,6 +39,9 @@ export function PlatformVariantCard({
   const hasRequiredPlatformMedia = hasRequiredMedia(variant.platform, media);
   const charactersRemaining = constraints.maxChars - variant.adaptedText.length;
   const isOverLimit = charactersRemaining < 0;
+  const regenerateLabel = usesSharedCaption
+    ? "Regenerate shared caption for all selected platforms with AI"
+    : `Regenerate ${variant.platform} variant with AI`;
 
   return (
     <article
@@ -75,8 +80,8 @@ export function PlatformVariantCard({
             size="icon-xs"
             disabled={isGenerating}
             onClick={onRegenerate}
-            title={`Regenerate ${variant.platform} variant with AI`}
-            aria-label={`Regenerate ${variant.platform} variant with AI`}
+            title={regenerateLabel}
+            aria-label={regenerateLabel}
           >
             <RefreshCw className={isGenerating ? "animate-spin" : undefined} />
           </Button>

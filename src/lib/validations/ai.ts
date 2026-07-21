@@ -19,6 +19,7 @@ export const adaptPostRequestSchema = z.object({
     hasImages: z.boolean(),
     hasVideo: z.boolean(),
   }),
+  sharedCaption: z.boolean().default(false),
 });
 
 export const aiMediaSchema = z.object({
@@ -34,6 +35,7 @@ export const aiAdaptRequestSchema = z
       .min(1, "Select at least one platform"),
     tone: aiToneSchema.default("professional"),
     media: aiMediaSchema.default({ hasImages: false, hasVideo: false }),
+    sharedCaption: z.boolean().default(false),
   })
   .superRefine((data, context) => {
     if (new Set(data.platforms).size !== data.platforms.length) {

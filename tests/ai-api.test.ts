@@ -86,6 +86,71 @@ async function run(): Promise<void> {
   );
   assert.match(generations[0]?.prompt ?? "", /Adapt this social post for X/);
 
+  const sharedGenerations: AiGenerationInput[] = [];
+  const sharedProviderInputs: AiAdaptInput[] = [];
+  const sharedHandler = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: {
+      model: "mock",
+      adapt: async (input: AiAdaptInput) => {
+        sharedProviderInputs.push(input);
+        return sharedProviderInputs.length === 1
+          ? "Shared launch copy"
+          : "Unexpected second generation";
+      },
+    },
+    countGenerationsSince: async () => sharedGenerations.length,
+    reserveGenerations: reserveInMemory(sharedGenerations),
+  });
+  const sharedResponse = await sharedHandler.POST(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Launch day is here",
+      platforms: ["X", "LINKEDIN"],
+      tone: "professional",
+      media: { hasImages: false, hasVideo: false },
+      sharedCaption: true,
+    }),
+  }));
+  assert.equal(sharedResponse.status, 200);
+  const sharedPayload = aiAdaptResponseSchema.parse(await sharedResponse.json());
+  assert.equal(sharedProviderInputs.length, 1);
+  assert.deepEqual(
+    sharedPayload.variants.map((variant) => variant.text),
+    ["Shared launch copy", "Shared launch copy"],
+  );
+  assert.equal(sharedPayload.quota.remaining, 19);
+  assert.equal(sharedGenerations.length, 1);
+  assert.equal(sharedGenerations[0]?.platform, "X");
+  assert.match(sharedGenerations[0]?.prompt ?? "", /unchanged on: X, LINKEDIN/);
+  assert.match(sharedGenerations[0]?.prompt ?? "", /below 280 characters/);
+
+  const sharedInvalidOutput = createAiAdaptRouteHandler({
+    getAuthenticatedUser: async () => ({ ok: true, userId: "user-1" }),
+    provider: { model: "mock", adapt: async () => "x".repeat(281) },
+    countGenerationsSince: async () => 0,
+    reserveGenerations: reserveFromEmptyQuota,
+  });
+  const sharedInvalidResponse = await sharedInvalidOutput.POST(new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      baseText: "Hello",
+      platforms: ["X", "LINKEDIN"],
+      sharedCaption: true,
+    }),
+  }));
+  const sharedInvalidPayload = aiAdaptResponseSchema.parse(await sharedInvalidResponse.json());
+  assert.deepEqual(
+    sharedInvalidPayload.variants.map((variant) => ({
+      platform: variant.platform,
+      valid: variant.valid,
+    })),
+    [
+      { platform: "X", valid: false },
+      { platform: "LINKEDIN", valid: true },
+    ],
+  );
+
   const partialMedia = await handler.POST(new Request("http://localhost", {
     method: "POST",
     body: JSON.stringify({
