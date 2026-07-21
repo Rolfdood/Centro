@@ -247,11 +247,13 @@ async function run(): Promise<void> {
   assert.equal(groqPayload.functions, undefined);
 
   assert.doesNotThrow(() => assertSafeSocialCopy("Our API integration is live today."));
+  assert.doesNotThrow(() => assertSafeSocialCopy("class is in session today!"));
   for (const unsafeText of [
     "```ts\nconst answer = 42;\n```",
     "<script>alert('x')</script>",
     "curl https://example.com/deploy",
     "import secret from './secret'",
+    "class PostComposer {}",
   ]) {
     assert.throws(() => assertSafeSocialCopy(unsafeText), /unsafe executable syntax/i);
   }
