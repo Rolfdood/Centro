@@ -1,15 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { useAccounts, usePublishPost, useSaveDraft } from "@/lib/api";
+import {
+  useAccounts,
+  usePost,
+  usePosts,
+  usePublishPost,
+  useSaveDraft,
+} from "@/lib/api";
+import { getLatestDraftId } from "@/lib/posts/draft-resume";
 import { validatePost } from "@/lib/platforms/constraints";
 import type { SaveDraftInput } from "@/lib/validations/post";
 import { useComposerStore } from "@/stores/composerStore";
 
 import { AiAdaptPanel } from "./AiAdaptPanel";
 import { BaseTextArea } from "./BaseTextArea";
+import { ContinueEditingModal } from "./ContinueEditingModal";
 import { MediaUploader } from "./MediaUploader";
 import { PlatformSelector } from "./PlatformSelector";
 import { PlatformVariantCard } from "./PlatformVariantCard";
@@ -18,13 +26,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function Composer() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedDraftId = searchParams.get("id");
+  const hasRequestedDraft = Boolean(requestedDraftId);
   const { data: accounts = [], isLoading, isError } = useAccounts();
+  const { data: posts = [] } = usePosts();
+  const requestedDraft = usePost(requestedDraftId);
+  const latestDraftId = useMemo(() => getLatestDraftId(posts), [posts]);
+  const recentDraft = usePost(hasRequestedDraft ? null : latestDraftId);
   const saveDraft = useSaveDraft();
   const publishPost = usePublishPost();
   const [publishError, setPublishError] = useState<string | null>(null);
   const [draftSaveError, setDraftSaveError] = useState<string | null>(null);
   const [isPublishSubmitted, setIsPublishSubmitted] = useState(false);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [draftLoadError, setDraftLoadError] = useState<string | null>(null);
+  const [isContinueEditingOpen, setIsContinueEditingOpen] = useState(false);
+  const [dismissedDraftId, setDismissedDraftId] = useState<string | null>(null);
   const publishRequestedRef = useRef(false);
   const draftSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const saveDraftSnapshotRef = useRef<() => Promise<unknown>>(
@@ -47,6 +65,7 @@ export function Composer() {
   const setMedia = useComposerStore((state) => state.setMedia);
   const setTone = useComposerStore((state) => state.setTone);
   const beginNewDraft = useComposerStore((state) => state.beginNewDraft);
+  const loadDraft = useComposerStore((state) => state.loadDraft);
   const { selectedVariants, validations, variantsAreValid, firstInvalidAccountId } =
     useMemo(() => {
       const selectedVariants = selectedAccountIds.flatMap((accountId) => {
@@ -130,6 +149,73 @@ export function Composer() {
   saveDraftSnapshotRef.current = saveDraftSnapshot;
 
   useEffect(() => {
+    beginNewDraft();
+    setDraftLoadError(null);
+    setIsContinueEditingOpen(false);
+  }, [beginNewDraft, requestedDraftId]);
+
+  useEffect(() => {
+    if (!hasRequestedDraft || requestedDraft.isPending) {
+      return;
+    }
+
+    if (requestedDraft.data && loadDraft(requestedDraft.data)) {
+      return;
+    }
+
+    beginNewDraft();
+    setDraftLoadError(
+      "We couldn’t load that draft. You can start a new post instead.",
+    );
+  }, [
+    beginNewDraft,
+    hasRequestedDraft,
+    loadDraft,
+    requestedDraft.data,
+    requestedDraft.isPending,
+  ]);
+
+  useEffect(() => {
+    if (
+      hasRequestedDraft ||
+      !recentDraft.data ||
+      recentDraft.data.id === dismissedDraftId
+    ) {
+      return;
+    }
+
+    setIsContinueEditingOpen(true);
+  }, [dismissedDraftId, hasRequestedDraft, recentDraft.data]);
+
+  useEffect(() => {
+    if (!isContinueEditingOpen) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setIsContinueEditingOpen(false);
+      setDismissedDraftId(recentDraft.data?.id ?? null);
+    }, 7000);
+
+    return () => window.clearTimeout(timeout);
+  }, [isContinueEditingOpen, recentDraft.data?.id]);
+
+  const dismissRecentDraft = useCallback(() => {
+    setIsContinueEditingOpen(false);
+    setDismissedDraftId(recentDraft.data?.id ?? null);
+  }, [recentDraft.data?.id]);
+
+  const continueRecentDraft = useCallback(() => {
+    if (!recentDraft.data || !loadDraft(recentDraft.data)) {
+      setDraftLoadError(
+        "We couldn’t load that draft. You can start a new post instead.",
+      );
+    }
+
+    dismissRecentDraft();
+  }, [dismissRecentDraft, loadDraft, recentDraft.data]);
+
+  useEffect(() => {
     if (!hasDraftContent) {
       return;
     }
@@ -195,6 +281,14 @@ export function Composer() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col pb-4">
       <div className="space-y-6">
+        {draftLoadError ? (
+          <section
+            className="rounded-lg border border-destructive/40 bg-destructive/10 p-4"
+            role="alert"
+          >
+            <p className="text-sm text-foreground">{draftLoadError}</p>
+          </section>
+        ) : null}
         {isLoading ? (
           <section aria-label="Loading accounts" className="space-y-2">
             <Skeleton className="h-3 w-20" />
@@ -279,6 +373,13 @@ export function Composer() {
         publishError={publishError}
         onInvalidAttempt={scrollToFirstInvalidVariant}
         onPublish={handlePublish}
+      />
+
+      <ContinueEditingModal
+        draft={recentDraft.data ?? null}
+        open={isContinueEditingOpen}
+        onContinue={continueRecentDraft}
+        onStartNew={dismissRecentDraft}
       />
     </div>
   );

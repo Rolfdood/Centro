@@ -1,18 +1,65 @@
 import assert from "node:assert/strict";
+import type { PostDetailDto } from "../src/types";
 
 const xAccount = { id: "account-x", platform: "X" as const };
 const linkedInAccount = { id: "account-linkedin", platform: "LINKEDIN" as const };
 
-const storage = new Map<string, string>();
-
 Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
   value: {
-    getItem: (key: string) => storage.get(key) ?? null,
-    setItem: (key: string, value: string) => storage.set(key, value),
-    removeItem: (key: string) => storage.delete(key),
+    getItem: () => {
+      throw new Error("Composer state must not read localStorage.");
+    },
+    setItem: () => {
+      throw new Error("Composer state must not write localStorage.");
+    },
+    removeItem: () => {
+      throw new Error("Composer state must not clear localStorage.");
+    },
   },
 });
+
+const loadedDraft: PostDetailDto = {
+  id: "post-1",
+  idempotencyKey: "123e4567-e89b-12d3-a456-426614174012",
+  baseText: "A saved server draft",
+  status: "DRAFT",
+  scheduledAt: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T01:00:00.000Z",
+  targets: [
+    {
+      id: "target-1",
+      accountId: xAccount.id,
+      platform: "X",
+      adaptedText: "A saved server draft",
+      status: "DRAFT",
+      scheduledAt: null,
+      publishedAt: null,
+      publishedUrl: null,
+      error: null,
+      attempts: 0,
+      account: {
+        id: xAccount.id,
+        platform: "X",
+        handle: "@centro",
+        status: "ACTIVE",
+        scheduledTargetCount: 0,
+      },
+    },
+  ],
+  media: [
+    {
+      id: "media-1",
+      url: "https://example.com/image.jpg",
+      type: "IMAGE",
+      sizeBytes: 1024,
+      width: 1200,
+      height: 800,
+      order: 0,
+    },
+  ],
+};
 
 async function run(): Promise<void> {
   const { requiresAiRegenerationConfirmation, useComposerStore } =
@@ -105,6 +152,34 @@ async function run(): Promise<void> {
     useComposerStore.getState().idempotencyKey,
     draftKey,
     "the idempotency key must remain reusable until a new draft begins",
+  );
+
+  assert.equal(useComposerStore.getState().loadDraft(loadedDraft), true);
+  assert.equal(
+    useComposerStore.getState().idempotencyKey,
+    loadedDraft.idempotencyKey,
+    "loading a server draft must preserve its idempotency key",
+  );
+  assert.equal(useComposerStore.getState().baseText, loadedDraft.baseText);
+  assert.deepEqual(useComposerStore.getState().selectedAccountIds, [xAccount.id]);
+  assert.deepEqual(useComposerStore.getState().media, [
+    {
+      id: "media-1",
+      url: "https://example.com/image.jpg",
+      type: "IMAGE",
+      sizeBytes: 1024,
+      width: 1200,
+      height: 800,
+    },
+  ]);
+
+  assert.equal(
+    useComposerStore.getState().loadDraft({
+      ...loadedDraft,
+      status: "PUBLISHED",
+    }),
+    false,
+    "non-draft posts cannot be loaded into the composer",
   );
 
   console.log("Composer store tests passed.");

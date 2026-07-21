@@ -1,10 +1,10 @@
 "use client";
 
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { Platform } from "@/lib/platforms/constraints";
 import { COMPOSER_TONES } from "@/lib/validations/ai";
+import type { PostDetailDto } from "@/types";
 
 export type ComposerTone = (typeof COMPOSER_TONES)[number];
 
@@ -50,6 +50,7 @@ interface ComposerDraftState {
 
 interface ComposerStore extends ComposerDraftState {
   beginNewDraft: () => void;
+  loadDraft: (draft: PostDetailDto) => boolean;
   setBaseText: (baseText: string) => void;
   selectAccount: (account: ComposerAccountSelection) => void;
   deselectAccount: (accountId: string) => void;
@@ -74,11 +75,47 @@ function createInitialDraft(): ComposerDraftState {
   };
 }
 
-export const useComposerStore = create<ComposerStore>()(
-  persist(
-    (set) => ({
-      ...createInitialDraft(),
-      beginNewDraft: () => set(createInitialDraft()),
+export const useComposerStore = create<ComposerStore>()((set) => ({
+  ...createInitialDraft(),
+  beginNewDraft: () => set(createInitialDraft()),
+  loadDraft: (draft) => {
+    if (draft.status !== "DRAFT") {
+      return false;
+    }
+
+    const variants: Record<string, ComposerVariant> = {};
+    for (const target of draft.targets) {
+      if (!target.accountId) {
+        continue;
+      }
+
+      variants[target.accountId] = {
+        accountId: target.accountId,
+        platform: target.platform,
+        adaptedText: target.adaptedText,
+        isManuallyEdited: target.adaptedText !== draft.baseText,
+        isAiGenerated: false,
+      };
+    }
+
+    set({
+      idempotencyKey: draft.idempotencyKey,
+      baseText: draft.baseText,
+      selectedAccountIds: Object.keys(variants),
+      variants,
+      media: draft.media.map((asset) => ({
+        id: asset.id,
+        url: asset.url,
+        type: asset.type,
+        sizeBytes: asset.sizeBytes,
+        width: asset.width,
+        height: asset.height,
+      })),
+      tone: "professional",
+    });
+
+    return true;
+  },
       setBaseText: (baseText) =>
         set((state) => ({
           baseText,
@@ -166,19 +203,5 @@ export const useComposerStore = create<ComposerStore>()(
           };
         }),
       setMedia: (media) => set({ media }),
-      setTone: (tone) => set({ tone }),
-    }),
-    {
-      name: "centro-composer",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        idempotencyKey: state.idempotencyKey,
-        baseText: state.baseText,
-        selectedAccountIds: state.selectedAccountIds,
-        variants: state.variants,
-        media: state.media,
-        tone: state.tone,
-      }),
-    },
-  ),
-);
+  setTone: (tone) => set({ tone }),
+}));

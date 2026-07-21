@@ -1,4 +1,5 @@
 import { LoaderCircle, RotateCw } from "lucide-react";
+import Link from "next/link";
 
 import { PlatformDotGroup } from "@/components/features/posts/PlatformDotGroup";
 import { PostExcerpt } from "@/components/features/posts/PostExcerpt";
@@ -7,6 +8,7 @@ import {
   postStatusDotClassName,
 } from "@/components/features/posts/PostStatusBadge";
 import { Button } from "@/components/ui/button";
+import { getDraftComposerHref } from "@/lib/posts/draft-resume";
 import type { PostListItemDto } from "@/types";
 
 interface PostHistoryRowProps {
@@ -25,9 +27,17 @@ export function PostHistoryRow({
   isRetryDisabled,
 }: PostHistoryRowProps) {
   const canRetry = post.status === "FAILED" || post.status === "PARTIALLY_FAILED";
+  const draftHref = getDraftComposerHref(post);
 
   return (
-    <article className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-muted/30 md:grid-cols-[auto_minmax(0,1fr)_6rem_8.5rem_10rem] md:items-center md:gap-4">
+    <article className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-muted/30 md:grid-cols-[auto_minmax(0,1fr)_6rem_8.5rem_10rem] md:items-center md:gap-4">
+      {draftHref ? (
+        <Link
+          href={draftHref}
+          className="absolute inset-0 z-10 cursor-pointer rounded-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring"
+          aria-label="Continue editing draft"
+        />
+      ) : null}
       <span
         aria-label={`${post.status.toLowerCase().replaceAll("_", " ")} status`}
         className={`mt-1.5 size-2 shrink-0 rounded-full md:mt-0 ${postStatusDotClassName(post.status)}`}
