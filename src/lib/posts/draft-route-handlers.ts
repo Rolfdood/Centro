@@ -29,6 +29,8 @@ type SaveDraftInput = {
   media: MediaInput[];
 };
 
+type ValidatedDraftInput = z.infer<typeof saveDraftSchema>;
+
 export interface DraftRouteDependencies {
   getAuthenticatedUser: typeof getAuthenticatedUser;
   findPostByIdempotencyKey: (key: string) => Promise<PostWithRelations | null>;
@@ -71,6 +73,42 @@ function conflictResponse(): NextResponse {
   );
 }
 
+async function toSaveDraftInput(
+  dependencies: DraftRouteDependencies,
+  userId: string,
+  input: ValidatedDraftInput,
+): Promise<SaveDraftInput | null> {
+  const accountIds = input.targets.map((target) => target.accountId);
+  const accounts = await dependencies.findAccounts(userId, accountIds);
+  if (accounts.length !== accountIds.length) {
+    return null;
+  }
+
+  const accountsById = new Map(
+    accounts.map((account) => [account.id, account]),
+  );
+
+  return {
+    userId,
+    baseText: input.baseText,
+    idempotencyKey: input.idempotencyKey,
+    targets: input.targets.map((target) => {
+      const account = accountsById.get(target.accountId);
+      if (!account) {
+        throw new Error("Selected account was not loaded.");
+      }
+
+      return {
+        accountId: account.id,
+        platform: account.platform,
+        adaptedText: target.adaptedText,
+        status: "DRAFT",
+      };
+    }),
+    media: input.media,
+  };
+}
+
 export function createDraftRouteHandler(dependencies: DraftRouteDependencies) {
   return async (request: Request): Promise<NextResponse> => {
     const authentication = await dependencies.getAuthenticatedUser();
@@ -90,6 +128,8 @@ export function createDraftRouteHandler(dependencies: DraftRouteDependencies) {
       return invalidRequestResponse("Invalid request.", fieldErrors(input.error));
     }
 
+    let draftInput: SaveDraftInput | null = null;
+
     try {
       const existing = await dependencies.findPostByIdempotencyKey(
         input.data.idempotencyKey,
@@ -106,39 +146,17 @@ export function createDraftRouteHandler(dependencies: DraftRouteDependencies) {
         }
       }
 
-      const accountIds = input.data.targets.map((target) => target.accountId);
-      const accounts = await dependencies.findAccounts(
+      draftInput = await toSaveDraftInput(
+        dependencies,
         authentication.userId,
-        accountIds,
+        input.data,
       );
-      if (accounts.length !== accountIds.length) {
+      if (!draftInput) {
         return invalidRequestResponse(
           "One or more selected accounts are unavailable.",
         );
       }
 
-      const accountsById = new Map(
-        accounts.map((account) => [account.id, account]),
-      );
-      const draftInput: SaveDraftInput = {
-        userId: authentication.userId,
-        baseText: input.data.baseText,
-        idempotencyKey: input.data.idempotencyKey,
-        targets: input.data.targets.map((target) => {
-          const account = accountsById.get(target.accountId);
-          if (!account) {
-            throw new Error("Selected account was not loaded.");
-          }
-
-          return {
-            accountId: account.id,
-            platform: account.platform,
-            adaptedText: target.adaptedText,
-            status: "DRAFT",
-          };
-        }),
-        media: input.data.media,
-      };
       const draft = existing
         ? await dependencies.updateDraft(existing.id, draftInput)
         : await dependencies.createDraft(draftInput);
@@ -160,33 +178,8 @@ export function createDraftRouteHandler(dependencies: DraftRouteDependencies) {
             return conflictResponse();
           }
 
-          if (existing?.status === "DRAFT") {
-            const accounts = await dependencies.findAccounts(
-              authentication.userId,
-              input.data.targets.map((target) => target.accountId),
-            );
-            const accountsById = new Map(
-              accounts.map((account) => [account.id, account]),
-            );
-            const draft = await dependencies.updateDraft(existing.id, {
-              userId: authentication.userId,
-              baseText: input.data.baseText,
-              idempotencyKey: input.data.idempotencyKey,
-              targets: input.data.targets.map((target) => {
-                const account = accountsById.get(target.accountId);
-                if (!account) {
-                  throw new Error("Selected account was not loaded.");
-                }
-
-                return {
-                  accountId: account.id,
-                  platform: account.platform,
-                  adaptedText: target.adaptedText,
-                  status: "DRAFT",
-                };
-              }),
-              media: input.data.media,
-            });
+          if (existing?.status === "DRAFT" && draftInput) {
+            const draft = await dependencies.updateDraft(existing.id, draftInput);
             return NextResponse.json(
               postDetailResponseSchema.parse({ post: toPostDetailDto(draft) }),
             );

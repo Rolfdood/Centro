@@ -100,6 +100,18 @@ async function run(): Promise<void> {
   assert.equal(updateCount, 1, "subsequent saves update the same draft post");
 
   posts.set(
+    key,
+    {
+      ...postFixture(userId, key, "Published post"),
+      status: "PUBLISHED",
+    } as PostWithRelations,
+  );
+  const published = await handler(request(key, "A later draft change"));
+  assert.equal(published.status, 200);
+  assert.equal((await published.json()).post.status, "PUBLISHED");
+  assert.equal(updateCount, 1, "published posts are never changed by draft saves");
+
+  posts.set(
     "123e4567-e89b-12d3-a456-426614174011",
     postFixture("user-2", "123e4567-e89b-12d3-a456-426614174011", "Foreign draft"),
   );
