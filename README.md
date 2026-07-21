@@ -38,6 +38,7 @@ Superpowers plugin.
 
    The default `DATABASE_URL` in `.env.example` matches the Docker Compose service.
    Update it only if you use your own PostgreSQL instance. Never commit `.env`.
+   Configure the remaining values using [Environment configuration](#environment-configuration).
 
 4. Generate Prisma Client:
 
@@ -66,6 +67,48 @@ Superpowers plugin.
    ```
 
    Open [http://localhost:3000](http://localhost:3000).
+
+## Environment configuration
+
+Local development reads configuration from `.env`. Start by copying
+`.env.example`, then fill in only the values needed for the flow you want to
+test.
+
+| Variable | Required for local testing? | What to set |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | PostgreSQL connection string. The default works with `docker compose up -d`: `postgresql://centro:centro@localhost:5433/centro?schema=public`. |
+| `AUTH_URL` | Yes | Local app URL, usually `http://localhost:3000`. |
+| `AUTH_SECRET` | Yes | Secret used by Auth.js to sign/encrypt auth state. Generate a local value with `openssl rand -base64 32` or `node -e "console.log(crypto.randomBytes(32).toString('base64'))"`. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional | Only needed when testing Google OAuth. Leave blank for credentials login. |
+| `AI_PROVIDER` | Optional | AI provider name. Use `openai` by default or `groq` when testing Groq. |
+| `AI_MODEL` | Optional | Model sent to the selected provider. Defaults are `gpt-4o-mini` for OpenAI and `llama-3.3-70b-versatile` for Groq. |
+| `OPENAI_API_KEY` | Optional | Required only when `AI_PROVIDER="openai"` should call the OpenAI API. Leave blank to use deterministic mock AI output. |
+| `GROQ_API_KEY` | Optional | Required only when `AI_PROVIDER="groq"` should call Groq. Leave blank to use deterministic mock AI output. |
+| `AI_DAILY_LIMIT` | Optional | Daily AI generation quota per user. Defaults to `20`. |
+| `MOCK_PLATFORMS` | Yes for MVP | Keep `true` for local testing; real platform adapters are not part of the current demo scope. |
+| `MOCK_FAILURE_RATE` | Optional | Number from `0` to `1` used to simulate platform publish failures. Use `0` for normal local testing. |
+| `UPLOAD_DIR` | Optional | Local folder for uploaded media. Defaults to `./uploads`. |
+| `CRON_SECRET` | Optional | Reserved for scheduled publishing/cron testing. Can stay blank for current composer and publish-now flows. |
+
+Minimal `.env` values for local credentials login and mock AI/platform testing:
+
+```env
+DATABASE_URL="postgresql://centro:centro@localhost:5433/centro?schema=public"
+AUTH_URL="http://localhost:3000"
+AUTH_SECRET="replace-with-a-generated-local-secret"
+AI_PROVIDER="openai"
+AI_MODEL="gpt-4o-mini"
+OPENAI_API_KEY=""
+GROQ_API_KEY=""
+AI_DAILY_LIMIT="20"
+MOCK_PLATFORMS="true"
+MOCK_FAILURE_RATE="0"
+UPLOAD_DIR="./uploads"
+```
+
+Set `OPENAI_API_KEY` or `GROQ_API_KEY` only when you want to test real AI
+provider calls. With the selected provider key left blank, Centro returns
+deterministic mock variants so the app can be tested offline.
 
 ## Test credentials
 
