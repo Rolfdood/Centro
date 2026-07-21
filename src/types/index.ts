@@ -74,6 +74,7 @@ export const postListItemDtoSchema = z.object({
 }).strict();
 
 export const postDetailDtoSchema = postListItemDtoSchema.extend({
+  idempotencyKey: z.string().uuid(),
   targets: z.array(postTargetDtoSchema),
   media: z.array(mediaAssetDtoSchema),
 }).strict();

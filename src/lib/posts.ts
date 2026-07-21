@@ -87,6 +87,7 @@ export function toPostListItemDto(post: PostWithRelations): PostListItemDto {
 export function toPostDetailDto(post: PostWithRelations): PostDetailDto {
   return postDetailDtoSchema.parse({
     ...toPostListItemDto(post),
+    idempotencyKey: post.idempotencyKey,
     targets: post.targets.map(toTargetDto),
     media: post.media.map((asset) => ({
       id: asset.id,

@@ -89,7 +89,13 @@ async function run(): Promise<void> {
 
   const created = await handler(request());
   assert.equal(created.status, 201);
-  assert.equal((await created.json()).post.status, "DRAFT");
+  const createdBody = await created.json();
+  assert.equal(createdBody.post.status, "DRAFT");
+  assert.equal(
+    createdBody.post.idempotencyKey,
+    key,
+    "the detail response includes the key required to resume a draft",
+  );
   assert.equal(savedTargetCount, 0, "a text-only draft can be saved before selecting accounts");
 
   const updated = await handler(
