@@ -49,6 +49,34 @@ export const createPostSchema = z
     })),
   }));
 
+export const saveDraftSchema = z
+  .object({
+    idempotencyKey: z.string().uuid("Idempotency key must be a UUID"),
+    baseText: z.string(),
+    targets: z.array(
+      z.object({
+        accountId: z.string().trim().min(1, "Account is required"),
+        adaptedText: z.string(),
+      }),
+    ),
+    media: z.array(mediaInputSchema).default([]),
+  })
+  .superRefine((data, context) => {
+    const accountIds = new Set<string>();
+
+    data.targets.forEach((target, index) => {
+      if (accountIds.has(target.accountId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Each account can only be selected once",
+          path: ["targets", index, "accountId"],
+        });
+      }
+
+      accountIds.add(target.accountId);
+    });
+  });
+
 export const postIdParamsSchema = z.object({
   id: z.string().cuid("Post ID must be valid"),
 });
@@ -56,4 +84,5 @@ export const postIdParamsSchema = z.object({
 export type PostTargetInput = z.infer<typeof postTargetInputSchema>;
 export type MediaInput = z.infer<typeof mediaInputSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type SaveDraftInput = z.infer<typeof saveDraftSchema>;
 export type PostIdParams = z.infer<typeof postIdParamsSchema>;

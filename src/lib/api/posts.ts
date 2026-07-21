@@ -5,6 +5,8 @@ import {
   createPostSchema,
   postIdParamsSchema,
   type CreatePostInput,
+  saveDraftSchema,
+  type SaveDraftInput,
 } from "@/lib/validations/post";
 import {
   postDetailResponseSchema,
@@ -66,6 +68,25 @@ async function createPost(input: CreatePostInput): Promise<PostDetailDto> {
   return response.post;
 }
 
+async function saveDraft(input: SaveDraftInput): Promise<PostDetailDto> {
+  const parsed = saveDraftSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error("Please review the draft details and try again.");
+  }
+
+  const response = await requestJson(
+    "/api/posts/drafts",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(parsed.data),
+    },
+    postDetailResponseSchema,
+  );
+
+  return response.post;
+}
+
 async function publishPost({ postId }: PostActionInput): Promise<PostDetailDto> {
   const parsed = postIdParamsSchema.safeParse({ id: postId });
   if (!parsed.success) {
@@ -116,6 +137,18 @@ export function useCreatePost() {
 
   return useMutation({
     mutationFn: createPost,
+    onSuccess: async (post) => {
+      await queryClient.invalidateQueries({ queryKey: postQueryKeys.all });
+      queryClient.setQueryData(postQueryKeys.detail(post.id), post);
+    },
+  });
+}
+
+export function useSaveDraft() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: saveDraft,
     onSuccess: async (post) => {
       await queryClient.invalidateQueries({ queryKey: postQueryKeys.all });
       queryClient.setQueryData(postQueryKeys.detail(post.id), post);
